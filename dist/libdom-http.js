@@ -382,8 +382,11 @@
         function applyClear() {
             delete arguments[2][arguments[1]];
         }
-        function buildInstance(Class) {
+        function buildInstance(Class, overrides) {
             empty.prototype = Class.prototype;
+            if (TYPE.object(overrides)) {
+                return assign(new empty(), overrides);
+            }
             return new empty();
         }
         function compare(object1, object2) {
@@ -503,7 +506,7 @@
             assign: assign,
             rehash: assignProperties,
             contains: contains,
-            buildInstance: buildInstance,
+            instantiate: buildInstance,
             clone: clone,
             compare: compare,
             clear: clear
@@ -771,7 +774,7 @@
             function createPromise(instance) {
                 var Class = Promise;
                 if (!(instance instanceof Class)) {
-                    instance = OBJECT.buildInstance(Class);
+                    instance = OBJECT.instantiate(Class);
                 }
                 instance.__state = [ null, void 0, [], null, null ];
                 return instance;
@@ -3240,7 +3243,9 @@
         function request(url, config) {
             var CORE = LIBCORE, isObject = CORE.object, getDriver = get;
             var Driver = null;
-            if (isObject(url)) {
+            if (CORE.string(url) && arguments.length === 1) {
+                config = {};
+            } else if (isObject(url)) {
                 Driver = url.driver;
             }
             if (!getDriver(Driver) && isObject(config)) {
@@ -3265,14 +3270,17 @@
             each: eachHeader,
             parse: parse
         };
-        function parseHeaderString(str, callback) {
+        function parseHeaderString(str, callback, scope) {
             var lines = str.split(LINE_SPLIT_RE), pairRe = LINE_PAIR_RE, extensionRe = LINE_EXTENSION_RE, requestRe = LINE_REQUEST_RE, responseRe = LINE_RESPONSE_RE, trimRe = LINE_TRIM, separator = ":", trimReplace = "$1", contains = LIBCORE.contains, l = lines.length, c = -1, headers = {}, names = [], nl = 0, name = null;
             var line, index, value, values, len;
+            if (typeof scope === "undefined") {
+                scope = null;
+            }
             for (;l--; ) {
                 line = lines[++c];
                 if (!c && requestRe.test(line) || responseRe.test(line)) {
-                    headers[""] = line;
-                    callback("", line);
+                    names[nl++] = "";
+                    values[values.length] = line;
                     continue;
                 }
                 if (pairRe.test(line)) {
@@ -3299,17 +3307,17 @@
             }
             for (c = -1, l = names.length; l--; ) {
                 name = names[++c];
-                callback(name, headers[name]);
+                callback.call(scope, name, headers[name]);
             }
         }
-        function eachHeader(input, callback, scope) {
+        function eachHeader(input, callback, scope, current) {
             var CORE = LIBCORE, isString = CORE.string, isNumber = CORE.number, isArray = CORE.array, contains = CORE.contains, clean = cleanArrayValues;
             var name, value;
             if (CORE.array(input)) {
                 input = clean(input.slice(0)).join("\r\n");
             }
             if (isString(input)) {
-                parseHeaderString(input, callback, scope);
+                parseHeaderString(input, callback, scope, current);
             } else if (CORE.object(input)) {
                 if (typeof scope === "undefined") {
                     scope = null;
@@ -3338,7 +3346,6 @@
             return eachHeader(headers, parseCallback, values) && values;
         }
         function parseCallback(name, values) {
-            console.log("name: ", name, " new name: ", name.charAt(0).toUpperCase() + name.substring(1, name.length).toLowerCase());
             this[name.charAt(0).toUpperCase() + name.substring(1, name.length).toLowerCase()] = values;
         }
         function cleanArrayValues(array) {
@@ -3496,71 +3503,119 @@
     }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
-            var LIBCORE = __webpack_require__(2), BASE = __webpack_require__(44), STATE_UNSENT = 0, STATE_OPENED = 1, STATE_HEADERS_RECEIVED = 2, STATE_LOADING = 3, STATE_DONE = 4, HTTP_REQUEST = LIBCORE.buildInstance(BASE.request), BASE_DRIVER = HTTP_REQUEST.constructor;
+            var LIBCORE = __webpack_require__(2), BASE = __webpack_require__(44), STATE_UNSENT = 0, STATE_OPENED = 1, STATE_HEADERS_RECEIVED = 2, STATE_LOADING = 3, STATE_DONE = 4, HTTP_REQUEST = BASE.request, BASE_HTTP_REQUEST = HTTP_REQUEST.prototype;
             function Xhr() {
-                BASE_DRIVER.apply(this, arguments);
+                HTTP_REQUEST.apply(this, arguments);
             }
-            LIBCORE.assign(Xhr.prototype = HTTP_REQUEST, {
+            Xhr.prototype = LIBCORE.instantiate(HTTP_REQUEST, {
                 constructor: Xhr,
                 driver: void 0,
-                bindNames: HTTP_REQUEST.bindNames.concat([ "onReadyStateChange" ]),
-                onReadyStateChange: function(resolve, reject) {
-                    var driver = this.driver;
+                bindNames: BASE_HTTP_REQUEST.bindNames.concat([ "onReadyStateChange" ]),
+                onReadyStateChange: function() {
+                    var me = this, driver = me.driver, operation = me.operation;
                     var status;
-                    switch (driver.readyState) {
-                      case STATE_UNSENT:
-                        break;
+                    if (driver) {
+                        switch (driver.readyState) {
+                          case STATE_UNSENT:
+                            break;
 
-                      case STATE_OPENED:
-                        break;
+                          case STATE_OPENED:
+                            break;
 
-                      case STATE_HEADERS_RECEIVED:
-                        break;
+                          case STATE_HEADERS_RECEIVED:
+                            break;
 
-                      case STATE_LOADING:
-                        break;
+                          case STATE_LOADING:
+                            break;
 
-                      case STATE_DONE:
-                        status = driver.status;
-                        if (status < 200 || status > 399) {
-                            reject(status);
-                        } else {
-                            resolve(status);
+                          case STATE_DONE:
+                            status = driver.status;
+                            if (status < 200 || status > 299) {
+                                operation.reject(status);
+                            } else {
+                                operation.resolve(status);
+                            }
                         }
+                    } else if (operation) {
+                        operation.reject(0);
                     }
-                    driver = null;
+                    operation = driver = null;
                 },
-                prepare: function(config) {
-                    var me = this, driver = new global.XMLHttpRequest();
-                    console.log(me.url);
+                eachSetHeader: function(value, name) {
+                    var driver = this.driver, l = value.length, c = 0;
+                    for (;l--; c++) {
+                        driver.setRequestHeader(name, value[c]);
+                    }
+                },
+                createTransportPromise: function() {
+                    var me = this;
+                    function callback(resolve, reject) {
+                        var operation = me.operation;
+                        operation.resolve = resolve;
+                        operation.reject = reject;
+                        operation = null;
+                    }
+                    return new Promise(callback);
+                },
+                prepare: function(operation) {
+                    var CORE = LIBCORE, me = this, config = operation.config, driver = new global.XMLHttpRequest(), withCredentials = config.withCredentials, headers = me.headers;
                     me.driver = driver;
                     driver.open(me.method.toUpperCase(), me.url, true);
+                    if (CORE.object(headers)) {
+                        CORE.each(headers, me.eachSetHeader, me);
+                    }
+                    if (typeof withCredentials === "boolean") {
+                        driver.withCredentials = withCredentials;
+                    }
+                    driver.timeout = me.timeout;
+                    driver.onreadystatechange = me.onReadyStateChange;
                     driver = null;
-                    return config;
+                    return operation;
                 },
                 transport: function() {
-                    var me = this, promise = new Promise(me.onReadyStateChange);
+                    var me = this;
                     me.driver.send(me.body || null);
-                    return promise;
+                    return me.createTransportPromise();
                 },
-                process: function(config) {
-                    return config;
+                process: function(operation, response) {
+                    var driver = this.driver;
+                    var responseText;
+                    if (driver.readyState > STATE_HEADERS_RECEIVED) {
+                        response.status = driver.status;
+                        response.statusText = driver.statusText;
+                        responseText = driver.responseText;
+                        response.body = responseText;
+                        response.processHeaders(driver.getAllResponseHeaders());
+                        response.processBody(responseText);
+                    }
+                    response.process();
+                    driver = null;
+                    return operation;
+                },
+                cleanup: function() {
+                    var me = this, driver = me.driver;
+                    if (driver) {
+                        me.driver = driver = driver.onreadystatechange = null;
+                    }
+                    delete me.driver;
+                    BASE_HTTP_REQUEST.cleanup.apply(me, arguments);
+                    return me;
                 }
             });
-            console.log("build ", LIBCORE.buildInstance(BASE.request));
             module.exports = Xhr;
         }).call(exports, function() {
             return this;
         }());
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var LIBCORE = __webpack_require__(2), TRANSFORM = __webpack_require__(38), METHODS = [ "head", "options", "trace", "get", "post", "put", "delete" ], HEADER_TRANSFORM_TYPE = "text/http-header", DEFAULTS = LIBCORE.createRegistry();
+        var LIBCORE = __webpack_require__(2), TRANSFORM = __webpack_require__(38), METHODS = [ "head", "options", "trace", "get", "post", "put", "delete" ], HEADER_TRANSFORM_TYPE = "text/http-header", DEFAULTS = LIBCORE.createRegistry(), instantiate = LIBCORE.instantiate;
         function bind(instance, method) {
             function bound() {
                 return method.apply(instance, arguments);
             }
             return bound;
         }
+        function HttpBase() {}
         function HttpRequest() {
             var me = this, names = me.bindNames, l = names.length, binder = bind;
             var name;
@@ -3573,106 +3628,16 @@
             var me = this;
             request.response = me;
             me.request = request;
-            if (!request.aborted) {
-                me.process(request);
-            }
         }
-        HttpRequest.prototype = {
-            type: "base",
-            responder: HttpResponse,
-            response: null,
+        HttpBase.prototype = {
             aborted: false,
-            requesting: false,
-            status: 0,
-            statusText: "Uninitialized",
-            url: null,
-            method: "get",
             headers: null,
             body: null,
             data: null,
-            bindNames: [ "prepare", "transport", "process", "success", "error" ],
-            constructor: HttpRequest,
-            request: function(url, config) {
-                var CORE = LIBCORE, isObject = CORE.object, me = this, methodList = METHODS, transformer = TRANSFORM, headerTransformType = HEADER_TRANSFORM_TYPE, assign = CORE.assign;
-                var item, defaults;
-                if (isObject(url)) {
-                    config = url;
-                    url = config.url;
-                }
-                if (CORE.string(url) && isObject(config)) {
-                    defaults = DEFAULTS.clone();
-                    config = assign(assign({}, defaults), config);
-                    me.url = url;
-                    item = config.method;
-                    if (methodList.indexOf(item) !== -1) {
-                        me.method = item;
-                    }
-                    item = transformer.transform(headerTransformType, defaults.headers);
-                    if (item) {
-                        me.headers = item;
-                    }
-                    item = transformer.transform(headerTransformType, config.headers);
-                    if (item) {
-                        if (isObject(me.headers)) {
-                            assign(me.headers, item);
-                        } else {
-                            me.headers = item;
-                        }
-                    }
-                    item = config.data || config.params || config.body;
-                    if (isObject(item)) {
-                        me.data = item;
-                    }
-                    item = me.data || me.body;
-                    if (item) {
-                        me.body = transformer.transform((me.header("Content-type", 0) || "application/octet-stream") + "-request", item);
-                    }
-                    return Promise.resolve(config).then(me.prepare).then(me.transport).then(me.process)["catch"](me.error);
-                }
-                return Promise.reject("Invalid request configuration");
-            },
-            prepare: function(data) {
-                return data;
-            },
-            transport: function() {
-                return Promise.reject("No transport() implementation.");
-            },
-            process: function(data) {
-                return data;
-            },
-            success: function(flag) {
-                var me = this, aborted = me.aborted;
-                if (flag === false) {
-                    if (!me.status) {
-                        me.status = 400;
-                        me.statusText = "Bad Request";
-                    }
-                    return me.error(me.statusText);
-                }
-                if (!aborted) {
-                    new me.responder(me);
-                }
-                me.cleanup(aborted);
-                return me;
-            },
-            error: function(error) {
-                var me = this;
-                console.log("me!!! ", me);
-                if (me.aborted) {
-                    return me.success();
-                }
-                return Promise.reject(error);
-            },
-            abort: function() {
-                var me = this;
-                if (me.requesting && !me.aborted) {
-                    me.aborted = true;
-                }
-                return me;
-            },
-            cleanup: function(aborted) {
-                return this;
-            },
+            typeSuffix: "",
+            bodyOutput: "body",
+            contentType: "application/octet-stream",
+            constructor: HttpBase,
             header: function(name, index) {
                 var CORE = LIBCORE, headers = this.headers;
                 var found;
@@ -3687,24 +3652,139 @@
                     }
                 }
                 return void 0;
+            },
+            processHeaders: function(headers) {
+                var me = this, transform = TRANSFORM.transform, transformType = HEADER_TRANSFORM_TYPE, defaults = transform(transformType, me.headers);
+                var contentType;
+                me.headers = defaults;
+                headers = transform(transformType, headers);
+                if (headers) {
+                    me.headers = defaults ? LIBCORE.assign(defaults, headers) : headers;
+                }
+                contentType = me.header("Content-type", 0);
+                if (LIBCORE.string(contentType)) {
+                    me.contentType = contentType;
+                }
+                return me;
+            },
+            processBody: function(body) {
+                var me = this;
+                if (!me.typeSuffix) {
+                    console.log("transform: ", body, " to ", me.header("Content-type", 0) || "application/octet-stream");
+                }
+                me[me.bodyOutput] = TRANSFORM.transform(me.contentType + me.typeSuffix, body);
+                return me;
             }
         };
-        HttpResponse.prototype = {
+        HttpRequest.prototype = instantiate(HttpBase, {
+            type: "base",
+            responder: HttpResponse,
+            response: null,
+            requesting: false,
+            url: null,
+            method: "get",
+            typeSuffix: "-request",
+            timeout: 10 * 1e3,
+            bindNames: [ "prepare", "transport", "success", "error" ],
+            constructor: HttpRequest,
+            request: function(url, config) {
+                var CORE = LIBCORE, isObject = CORE.object, me = this, methodList = METHODS, assign = CORE.assign;
+                var item, defaults;
+                if (isObject(url)) {
+                    config = url;
+                    url = config.url;
+                }
+                if (CORE.string(url) && isObject(config)) {
+                    defaults = DEFAULTS.clone();
+                    config = assign(assign({}, defaults), config);
+                    me.url = url;
+                    item = config.timeout;
+                    if (CORE.number(item) && item > 100) {
+                        me.timeout = item;
+                    }
+                    item = config.method;
+                    if (methodList.indexOf(item) !== -1) {
+                        me.method = item;
+                    }
+                    me.headers = defaults.headers;
+                    me.processHeaders(config.headers);
+                    me.data = config.data || config.params || config.body || null;
+                    me.processBody(me.data);
+                    me.requesting = true;
+                    return Promise.resolve(me.operation = {
+                        config: config,
+                        resolve: null,
+                        reject: null
+                    }).then(me.prepare).then(me.transport).then(me.success)["catch"](me.error);
+                }
+                return Promise.reject("Invalid request configuration");
+            },
+            prepare: function(operation) {
+                return operation;
+            },
+            transport: function() {
+                return Promise.reject("No transport() implementation.");
+            },
+            process: function(operation) {},
+            success: function(status) {
+                var me = this;
+                var response = new me.responder(me);
+                delete me.requesting;
+                if (status !== 0) {
+                    me.process(me.operation, response, status);
+                    response.process();
+                }
+                response.aborted = me.aborted;
+                me.cleanup();
+                return response;
+            },
+            error: function(error) {
+                var me = this, aborted = me.aborted;
+                if (aborted) {
+                    return me.success(0);
+                }
+                delete me.requesting;
+                me.cleanup();
+                return Promise.reject(error);
+            },
+            abort: function() {
+                var me = this, operation = me.operation;
+                if (me.requesting && !me.aborted) {
+                    me.aborted = true;
+                    if (LIBCORE.method(operation.reject)) {
+                        operation.reject(0);
+                    }
+                    operation = null;
+                }
+                return me;
+            },
+            cleanup: function() {
+                var me = this, operation = me.operation;
+                if (operation) {
+                    operation = operation.config = operation.resolve = operation.reject = null;
+                }
+                return me;
+            }
+        });
+        HttpResponse.prototype = instantiate(HttpBase, {
             constructor: HttpResponse,
             request: void 0,
-            headers: void 0,
-            body: void 0,
             contentType: null,
-            data: null,
-            process: function(request) {},
-            to: function(format) {}
-        };
+            status: 0,
+            statusText: "Uninitialized",
+            bodyOutput: "data",
+            process: function() {},
+            to: function(format) {
+                return TRANSFORM.transform(format, this.body);
+            }
+        });
         module.exports = {
+            defaults: DEFAULTS,
             request: HttpRequest,
-            response: HttpResponse,
-            defaults: DEFAULTS
+            response: HttpResponse
         };
         DEFAULTS.set("headers", {
+            accept: "application/json, text/plain, */*;q=0.8",
             "content-type": "application/json"
         });
     } ]);

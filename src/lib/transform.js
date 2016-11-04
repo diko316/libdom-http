@@ -113,7 +113,6 @@ function transform(type, data) {
             transformer = registry.get(type.defaultType);
             params = null;
         }
-        
         return transformer(data, params);
     }
     

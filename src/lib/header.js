@@ -14,7 +14,7 @@ var LIBCORE = require("libcore"),
         parse: parse
     };
     
-function parseHeaderString(str, callback) {
+function parseHeaderString(str, callback, scope) {
     var lines = str.split(LINE_SPLIT_RE),
         pairRe = LINE_PAIR_RE,
         extensionRe = LINE_EXTENSION_RE,
@@ -32,6 +32,10 @@ function parseHeaderString(str, callback) {
         name = null;
     var line, index, value, values, len;
     
+    if (typeof scope === 'undefined') {
+        scope = null;
+    }
+        
     // parse
     for (; l--;) {
         line = lines[++c];
@@ -39,9 +43,8 @@ function parseHeaderString(str, callback) {
         // header request/response
         if (!c &&
             requestRe.test(line) || responseRe.test(line)) {
-            
-            headers[""] = line;
-            callback("", line);
+            names[nl++] = "";
+            values[values.length] = line;
             continue;
             
         }
@@ -53,7 +56,7 @@ function parseHeaderString(str, callback) {
             value = line.
                         substring(index + 1, line.length).
                         replace(trimRe, trimReplace);
-                        
+            
             if (!value) {
                 continue;
             }
@@ -81,11 +84,11 @@ function parseHeaderString(str, callback) {
     // callback
     for (c = -1, l = names.length; l--;) {
         name = names[++c];
-        callback(name, headers[name]);
+        callback.call(scope, name, headers[name]);
     }
 }
 
-function eachHeader(input, callback, scope) {
+function eachHeader(input, callback, scope, current) {
     var CORE = LIBCORE,
         isString = CORE.string,
         isNumber = CORE.number,
@@ -100,13 +103,14 @@ function eachHeader(input, callback, scope) {
     }
     
     if (isString(input)) {
-        parseHeaderString(input, callback, scope);
+        parseHeaderString(input, callback, scope, current);
         
     }
     else if (CORE.object(input)) {
         if (typeof scope === 'undefined') {
             scope = null;
         }
+        
         for (name in input) {
             if (contains(input, name)) {
                 value = input[name];
@@ -139,11 +143,6 @@ function parse(headers) {
 }
 
 function parseCallback(name, values) {
-    console.log('name: ', name, ' new name: ',
-        name.charAt(0).toUpperCase() +
-            name.
-                substring(1, name.length).
-                toLowerCase());
     
     /* jshint validthis:true */
     this[name.charAt(0).toUpperCase() +

@@ -1,6 +1,13 @@
 'use strict';
 
-var DRIVER = require("../lib/driver.js");
+var http = global.main;
+
+console.log("------------------ xhr");
 
 
-console.log({ xhr: DRIVER.get("xhr") });
+main.request("data.json").
+    then(function (data) {
+        console.log("success! ", data);
+    }, function (error) {
+        console.log("failed! ", error);
+    });

@@ -31,9 +31,13 @@ function request(url, config) {
     var Driver = null;
     
     // sniff driver
-    if (isObject(url)) {
+    if (CORE.string(url) && arguments.length === 1) {
+        config = {};
+    }
+    else if (isObject(url)) {
         Driver = url.driver;
     }
+    
     if (!getDriver(Driver) && isObject(config)) {
         Driver =  config.driver;
     }
