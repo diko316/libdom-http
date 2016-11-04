@@ -23,12 +23,27 @@
     }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
-            var DOM = __webpack_require__(2), DRIVER = __webpack_require__(36), GLOB = global, ENV = DOM.env, EXPORTS = {};
+            var LIBCORE = __webpack_require__(2), rehash = LIBCORE.rehash, DOM = __webpack_require__(12), DRIVER = __webpack_require__(36), HEADER = __webpack_require__(37), TRANSFORM = __webpack_require__(38), GLOB = global, ENV = DOM.env, EXPORTS = {};
             if (ENV.browser) {
                 if (GLOB.XMLHttpRequest) {
-                    DRIVER.register("xhr", __webpack_require__(37));
+                    DRIVER.register("xhr", __webpack_require__(43));
                 }
             } else if (ENV.nodejs) {}
+            rehash(EXPORTS, DRIVER, {
+                request: "request",
+                register: "register",
+                use: "use"
+            });
+            rehash(EXPORTS, HEADER, {
+                parseHeader: "parse",
+                eachHeader: "each"
+            });
+            rehash(EXPORTS, TRANSFORM, {
+                parseType: "parse",
+                transformer: "register",
+                transform: "transform"
+            });
+            TRANSFORM.chain = DRIVER.chain = EXPORTS;
             module.exports = EXPORTS["default"] = EXPORTS;
             GLOB = null;
         }).call(exports, function() {
@@ -38,84 +53,23 @@
         "use strict";
         module.exports = __webpack_require__(3);
     }, function(module, exports, __webpack_require__) {
-        (function(global) {
-            "use strict";
-            var CORE = __webpack_require__(4), detect = __webpack_require__(14), rehash = CORE.rehash, EXPORTS = {
-                env: CORE.env,
-                info: detect
-            };
-            var css, event, dimension, selection;
-            if (detect) {
-                rehash(EXPORTS, __webpack_require__(21), {
-                    is: "is",
-                    isView: "isView",
-                    contains: "contains",
-                    select: "select",
-                    eachNodePreorder: "eachPreorder",
-                    eachNodePostorder: "eachPostorder",
-                    eachNodeLevelorder: "eachLevel",
-                    add: "add",
-                    remove: "remove"
-                });
-                rehash(EXPORTS, css = __webpack_require__(23), {
-                    addClass: "add",
-                    removeClass: "remove",
-                    computedStyle: "computedStyle",
-                    stylize: "style"
-                });
-                rehash(EXPORTS, event = __webpack_require__(31), {
-                    on: "on",
-                    un: "un",
-                    purge: "purge",
-                    dispatch: "fire"
-                });
-                rehash(EXPORTS, dimension = __webpack_require__(32), {
-                    offset: "offset",
-                    size: "size",
-                    box: "box",
-                    scroll: "scroll",
-                    screen: "screen"
-                });
-                rehash(EXPORTS, selection = __webpack_require__(33), {
-                    highlight: "select",
-                    noHighlight: "unselectable",
-                    clearHighlight: "clear"
-                });
-                rehash(EXPORTS, __webpack_require__(24), {
-                    parseColor: "parse",
-                    formatColor: "stringify"
-                });
-                rehash(EXPORTS, __webpack_require__(34), {
-                    eachDisplacement: "each",
-                    animateStyle: "style"
-                });
-                css.chain = event.chain = dimension.chain = selection.chain = EXPORTS;
-            }
-            module.exports = global.libdom = EXPORTS["default"] = EXPORTS;
-        }).call(exports, function() {
-            return this;
-        }());
-    }, function(module, exports, __webpack_require__) {
         "use strict";
-        module.exports = __webpack_require__(5);
-    }, function(module, exports, __webpack_require__) {
-        "use strict";
-        var DETECT = __webpack_require__(6), TYPE = __webpack_require__(8), OBJECT = __webpack_require__(9), ARRAY = __webpack_require__(10), PROCESSOR = __webpack_require__(11), EXPORTS = {
+        var DETECT = __webpack_require__(4), TYPE = __webpack_require__(6), OBJECT = __webpack_require__(7), ARRAY = __webpack_require__(8), PROCESSOR = __webpack_require__(9), EXPORTS = {
             env: DETECT
         };
         OBJECT.assign(EXPORTS, TYPE);
         OBJECT.assign(EXPORTS, OBJECT);
         OBJECT.assign(EXPORTS, ARRAY);
         OBJECT.assign(EXPORTS, PROCESSOR);
-        OBJECT.assign(EXPORTS, __webpack_require__(12));
+        OBJECT.assign(EXPORTS, __webpack_require__(10));
         PROCESSOR.chain = EXPORTS;
-        EXPORTS.Promise = __webpack_require__(13);
+        EXPORTS.Promise = __webpack_require__(11);
         module.exports = EXPORTS["default"] = EXPORTS;
     }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
             var ROOT = global, doc = ROOT.document, win = ROOT.window, toString = Object.prototype.toString, objectSignature = "[object Object]", BROWSER = !!doc && !!win && win.self === (doc.defaultView || doc.parentWindow), NODEVERSIONS = BROWSER ? false : function() {
-                return __webpack_require__(7).versions || false;
+                return __webpack_require__(5).versions || false;
             }(), CONSOLE = {}, CONSOLE_NAMES = [ "log", "info", "warn", "error", "assert" ], EXPORTS = {
                 browser: BROWSER,
                 nodejs: NODEVERSIONS && !!NODEVERSIONS.node,
@@ -126,7 +80,7 @@
             };
             var c, l;
             function nodeUserAgent() {
-                var PROCESS = __webpack_require__(7), VERSIONS = NODEVERSIONS, str = [ "Node ", VERSIONS.node, "(", PROCESS.platform, "; V8 ", VERSIONS.v8 || "unknown", "; arch ", PROCESS.arch, ")" ];
+                var PROCESS = __webpack_require__(5), VERSIONS = NODEVERSIONS, str = [ "Node ", VERSIONS.node, "(", PROCESS.platform, "; V8 ", VERSIONS.v8 || "unknown", "; arch ", PROCESS.arch, ")" ];
                 return str.join("");
             }
             function empty() {}
@@ -293,7 +247,7 @@
         };
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var DETECTED = __webpack_require__(6), validSignature = DETECTED.validSignature, OBJECT_SIGNATURE = "[object Object]", OBJECT = Object, O = OBJECT.prototype, toString = O.toString, isSignature = validSignature ? objectSignature : ieObjectSignature;
+        var DETECTED = __webpack_require__(4), validSignature = DETECTED.validSignature, OBJECT_SIGNATURE = "[object Object]", OBJECT = Object, O = OBJECT.prototype, toString = O.toString, isSignature = validSignature ? objectSignature : ieObjectSignature;
         function objectSignature(subject) {
             return toString.call(subject);
         }
@@ -373,7 +327,7 @@
         };
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var O = Object.prototype, TYPE = __webpack_require__(8), OHasOwn = O.hasOwnProperty;
+        var O = Object.prototype, TYPE = __webpack_require__(6), OHasOwn = O.hasOwnProperty;
         function empty() {}
         function assign(target, source, defaults) {
             var onAssign = apply, eachProperty = each;
@@ -556,7 +510,7 @@
         };
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var DETECT = __webpack_require__(6), OBJECT = __webpack_require__(9), A = Array.prototype;
+        var DETECT = __webpack_require__(4), OBJECT = __webpack_require__(7), A = Array.prototype;
         function indexOf(subject) {
             var array = this, l = array.length, c = -1;
             for (;l--; ) {
@@ -652,7 +606,7 @@
     }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
-            var TYPE = __webpack_require__(8), G = global, NAME_RE = /^(([^\.]+\.)*)((before|after)\:)?([a-zA-Z0-9\_\-\.]+)$/, POSITION_BEFORE = 1, POSITION_AFTER = 2, RUNNERS = {}, NAMESPACES = {}, EXPORTS = {
+            var TYPE = __webpack_require__(6), G = global, NAME_RE = /^(([^\.]+\.)*)((before|after)\:)?([a-zA-Z0-9\_\-\.]+)$/, POSITION_BEFORE = 1, POSITION_AFTER = 2, RUNNERS = {}, NAMESPACES = {}, EXPORTS = {
                 register: set,
                 run: run,
                 middleware: middlewareNamespace,
@@ -764,7 +718,7 @@
         }());
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var TYPE = __webpack_require__(8), OBJECT = __webpack_require__(9);
+        var TYPE = __webpack_require__(6), OBJECT = __webpack_require__(7);
         function create() {
             return new Registry();
         }
@@ -809,7 +763,7 @@
     }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
-            var TYPE = __webpack_require__(8), OBJECT = __webpack_require__(9), PROCESSOR = __webpack_require__(11), slice = Array.prototype.slice, G = global, INDEX_STATUS = 0, INDEX_DATA = 1, INDEX_PENDING = 2;
+            var TYPE = __webpack_require__(6), OBJECT = __webpack_require__(7), PROCESSOR = __webpack_require__(9), slice = Array.prototype.slice, G = global, INDEX_STATUS = 0, INDEX_DATA = 1, INDEX_PENDING = 2;
             function isPromise(object) {
                 var T = TYPE;
                 return T.object(object) && T.method(object.then);
@@ -977,6 +931,67 @@
         }());
     }, function(module, exports, __webpack_require__) {
         "use strict";
+        module.exports = __webpack_require__(13);
+    }, function(module, exports, __webpack_require__) {
+        (function(global) {
+            "use strict";
+            var CORE = __webpack_require__(2), detect = __webpack_require__(14), rehash = CORE.rehash, EXPORTS = {
+                env: CORE.env,
+                info: detect
+            };
+            var css, event, dimension, selection;
+            if (detect) {
+                rehash(EXPORTS, __webpack_require__(21), {
+                    is: "is",
+                    isView: "isView",
+                    contains: "contains",
+                    select: "select",
+                    eachNodePreorder: "eachPreorder",
+                    eachNodePostorder: "eachPostorder",
+                    eachNodeLevelorder: "eachLevel",
+                    add: "add",
+                    remove: "remove"
+                });
+                rehash(EXPORTS, css = __webpack_require__(23), {
+                    addClass: "add",
+                    removeClass: "remove",
+                    computedStyle: "computedStyle",
+                    stylize: "style"
+                });
+                rehash(EXPORTS, event = __webpack_require__(31), {
+                    on: "on",
+                    un: "un",
+                    purge: "purge",
+                    dispatch: "fire"
+                });
+                rehash(EXPORTS, dimension = __webpack_require__(32), {
+                    offset: "offset",
+                    size: "size",
+                    box: "box",
+                    scroll: "scroll",
+                    screen: "screen"
+                });
+                rehash(EXPORTS, selection = __webpack_require__(33), {
+                    highlight: "select",
+                    noHighlight: "unselectable",
+                    clearHighlight: "clear"
+                });
+                rehash(EXPORTS, __webpack_require__(24), {
+                    parseColor: "parse",
+                    formatColor: "stringify"
+                });
+                rehash(EXPORTS, __webpack_require__(34), {
+                    eachDisplacement: "each",
+                    animateStyle: "style"
+                });
+                css.chain = event.chain = dimension.chain = selection.chain = EXPORTS;
+            }
+            module.exports = global.libdom = EXPORTS["default"] = EXPORTS;
+        }).call(exports, function() {
+            return this;
+        }());
+    }, function(module, exports, __webpack_require__) {
+        "use strict";
         var browser = __webpack_require__(15), EXPORTS = false;
         if (browser) {
             EXPORTS = {
@@ -992,7 +1007,7 @@
     }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
-            var ROOT = global, CORE = __webpack_require__(4), ENV = CORE.env, EXPORTS = false;
+            var ROOT = global, CORE = __webpack_require__(2), ENV = CORE.env, EXPORTS = false;
             var match, ieVersion;
             if (ENV.browser) {
                 match = ENV.userAgent.match(/msie ([0-9]+\.[0-9]+)/i);
@@ -1039,7 +1054,7 @@
     }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
-            var WINDOW = global, CORE = __webpack_require__(4), DOC = WINDOW.document, DIV = DOC.createElement("div"), STYLE = DIV.style, RGBA = "rgba(0,0,0,0.5)", TRANSITION_SUPPORT = [ "OTransition", "webkitTransition", "MozTransition", "transition" ];
+            var WINDOW = global, CORE = __webpack_require__(2), DOC = WINDOW.document, DIV = DOC.createElement("div"), STYLE = DIV.style, RGBA = "rgba(0,0,0,0.5)", TRANSITION_SUPPORT = [ "OTransition", "webkitTransition", "MozTransition", "transition" ];
             var name, l, EXPORTS, color;
             module.exports = EXPORTS = {
                 w3cStyle: !!WINDOW.getComputedStyle,
@@ -1102,7 +1117,7 @@
         }());
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var CORE = __webpack_require__(4), DETECTED = __webpack_require__(14), STRING = __webpack_require__(22), ORDER_TYPE_PREORDER = 1, ORDER_TYPE_POSTORDER = 2, ORDER_TYPE_LEVELORDER = 3, ERROR_INVALID_DOM = STRING[1101], ERROR_INVALID_DOM_NODE = STRING[1103], ERROR_INVALID_CSS_SELECTOR = STRING[1111], ERROR_INVALID_CALLBACK = STRING[1112], ERROR_INVALID_ELEMENT_CONFIG = STRING[1121], INVALID_DESCENDANT_NODE_TYPES = {
+        var CORE = __webpack_require__(2), DETECTED = __webpack_require__(14), STRING = __webpack_require__(22), ORDER_TYPE_PREORDER = 1, ORDER_TYPE_POSTORDER = 2, ORDER_TYPE_LEVELORDER = 3, ERROR_INVALID_DOM = STRING[1101], ERROR_INVALID_DOM_NODE = STRING[1103], ERROR_INVALID_CSS_SELECTOR = STRING[1111], ERROR_INVALID_CALLBACK = STRING[1112], ERROR_INVALID_ELEMENT_CONFIG = STRING[1121], INVALID_DESCENDANT_NODE_TYPES = {
             9: 1,
             11: 1
         }, STD_CONTAINS = notSupportedContains, MANIPULATION_HELPERS = {}, EXPORTS = {
@@ -1424,7 +1439,7 @@
         module.exports = EXPORTS.chain = EXPORTS;
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var CORE = __webpack_require__(4), SEPARATE_RE = /[ \r\n\t]*[ \r\n\t]+[ \r\n\t]*/, CAMEL_RE = /[^a-z]+[a-z]/gi, STYLIZE_RE = /^([Mm]oz|[Ww]ebkit|[Mm]s|[oO])[A-Z]/, EXPORTS = {
+        var CORE = __webpack_require__(2), SEPARATE_RE = /[ \r\n\t]*[ \r\n\t]+[ \r\n\t]*/, CAMEL_RE = /[^a-z]+[a-z]/gi, STYLIZE_RE = /^([Mm]oz|[Ww]ebkit|[Mm]s|[oO])[A-Z]/, EXPORTS = {
             camelize: camelize,
             stylize: stylize,
             addWord: addWord,
@@ -1500,7 +1515,7 @@
     }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
-            var CORE = __webpack_require__(4), STRING = __webpack_require__(22), DETECTED = __webpack_require__(14), DOM = __webpack_require__(21), COLOR = __webpack_require__(24), PADDING_BOTTOM = "paddingBottom", PADDING_TOP = "paddingTop", PADDING_LEFT = "paddingLeft", PADDING_RIGHT = "paddingRight", OFFSET_LEFT = "offsetLeft", OFFSET_TOP = "offsetTop", OFFSET_WIDTH = "offsetWidth", OFFSET_HEIGHT = "offsetHeight", CLIENT_WIDTH = "clientWidth", CLIENT_HEIGHT = "clientHeight", COLOR_RE = /[Cc]olor$/, EM_OR_PERCENT_RE = /%|em/, CSS_MEASUREMENT_RE = /^([0-9]*\.?[0-9]+|[0-9]+\.?[0-9]*)(em|px|\%|pt|vh|vw|cm|ex|in|mm|pc|vmin)$/, WIDTH_RE = /width/i, NUMBER_RE = /\d/, BOX_RE = /(top|bottom|left|right|width|height)$/, DIMENSION_RE = /([Tt]op|[Bb]ottom|[Ll]eft|[Rr]ight|[wW]idth|[hH]eight|Size|Radius)$/, IE_ALPHA_OPACITY_RE = /\(opacity\=([0-9]+)\)/i, IE_ALPHA_OPACITY_TEMPLATE = "alpha(opacity=$opacity)", IE_ALPHA_OPACITY_TEMPLATE_RE = /\$opacity/, GET_OPACITY = opacityNotSupported, SET_OPACITY = opacityNotSupported, SET_STYLE = styleManipulationNotSupported, GET_STYLE = styleManipulationNotSupported, ERROR_INVALID_DOM = STRING[1101], EXPORTS = {
+            var CORE = __webpack_require__(2), STRING = __webpack_require__(22), DETECTED = __webpack_require__(14), DOM = __webpack_require__(21), COLOR = __webpack_require__(24), PADDING_BOTTOM = "paddingBottom", PADDING_TOP = "paddingTop", PADDING_LEFT = "paddingLeft", PADDING_RIGHT = "paddingRight", OFFSET_LEFT = "offsetLeft", OFFSET_TOP = "offsetTop", OFFSET_WIDTH = "offsetWidth", OFFSET_HEIGHT = "offsetHeight", CLIENT_WIDTH = "clientWidth", CLIENT_HEIGHT = "clientHeight", COLOR_RE = /[Cc]olor$/, EM_OR_PERCENT_RE = /%|em/, CSS_MEASUREMENT_RE = /^([0-9]*\.?[0-9]+|[0-9]+\.?[0-9]*)(em|px|\%|pt|vh|vw|cm|ex|in|mm|pc|vmin)$/, WIDTH_RE = /width/i, NUMBER_RE = /\d/, BOX_RE = /(top|bottom|left|right|width|height)$/, DIMENSION_RE = /([Tt]op|[Bb]ottom|[Ll]eft|[Rr]ight|[wW]idth|[hH]eight|Size|Radius)$/, IE_ALPHA_OPACITY_RE = /\(opacity\=([0-9]+)\)/i, IE_ALPHA_OPACITY_TEMPLATE = "alpha(opacity=$opacity)", IE_ALPHA_OPACITY_TEMPLATE_RE = /\$opacity/, GET_OPACITY = opacityNotSupported, SET_OPACITY = opacityNotSupported, SET_STYLE = styleManipulationNotSupported, GET_STYLE = styleManipulationNotSupported, ERROR_INVALID_DOM = STRING[1101], EXPORTS = {
                 add: addClass,
                 remove: removeClass,
                 computedStyle: computedStyleNotSupported,
@@ -1876,7 +1891,7 @@
         }());
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var CORE = __webpack_require__(4), FORMAT = __webpack_require__(25), COLOR_RE = /^(\#?|rgba?|hsla?)(\(([^\,]+(\,[^\,]+){2,3})\)|[a-f0-9]{3}|[a-f0-9]{6})$/, NUMBER_RE = /^[0-9]*\.?[0-9]+|[0-9]+\.?[0-9]*$/, REMOVE_SPACES = /[ \r\n\t\s]+/g, TO_COLOR = {
+        var CORE = __webpack_require__(2), FORMAT = __webpack_require__(25), COLOR_RE = /^(\#?|rgba?|hsla?)(\(([^\,]+(\,[^\,]+){2,3})\)|[a-f0-9]{3}|[a-f0-9]{6})$/, NUMBER_RE = /^[0-9]*\.?[0-9]+|[0-9]+\.?[0-9]*$/, REMOVE_SPACES = /[ \r\n\t\s]+/g, TO_COLOR = {
             rgb: __webpack_require__(26),
             rgba: __webpack_require__(27),
             hsl: __webpack_require__(28),
@@ -1990,7 +2005,7 @@
         }
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var RGBA = __webpack_require__(27), CORE = __webpack_require__(4), EXPORTS = module.exports = CORE.assign({}, RGBA);
+        var RGBA = __webpack_require__(27), CORE = __webpack_require__(2), EXPORTS = module.exports = CORE.assign({}, RGBA);
         function toString(integer) {
             return "rgb(" + RGBA.toArray(integer).slice(0, 3).join(",") + ")";
         }
@@ -2001,7 +2016,7 @@
         EXPORTS.toInteger = toInteger;
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var CORE = __webpack_require__(4), FORMAT = __webpack_require__(25), BYTE = 255, BYTE_PERCENT = 127, BYTE_HUE = 511, PERCENT = 100, HUE = 360, SATURATION = PERCENT, LUMINOSITY = PERCENT;
+        var CORE = __webpack_require__(2), FORMAT = __webpack_require__(25), BYTE = 255, BYTE_PERCENT = 127, BYTE_HUE = 511, PERCENT = 100, HUE = 360, SATURATION = PERCENT, LUMINOSITY = PERCENT;
         function hue2rgb(p, q, t) {
             t = (t + 1) % 1;
             switch (true) {
@@ -2081,7 +2096,7 @@
         };
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var HSLA = __webpack_require__(28), CORE = __webpack_require__(4), EXPORTS = module.exports = CORE.assign({}, HSLA);
+        var HSLA = __webpack_require__(28), CORE = __webpack_require__(2), EXPORTS = module.exports = CORE.assign({}, HSLA);
         function toString(integer) {
             var values = HSLA.toArray(integer).slice(0, 3);
             values[1] += "%";
@@ -2091,7 +2106,7 @@
         EXPORTS.toString = toString;
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var CORE = __webpack_require__(4), FORMAT = __webpack_require__(25), BYTE = 255, BYTE_PERCENT = 127, BYTE_HUE = 511, HUE = 360, PERCENT = 100;
+        var CORE = __webpack_require__(2), FORMAT = __webpack_require__(25), BYTE = 255, BYTE_PERCENT = 127, BYTE_HUE = 511, HUE = 360, PERCENT = 100;
         function itemize(value, index, format) {
             var F = FORMAT, M = Math, percent = PERCENT, parse = parseFloat, min = 0, max = index < 1 ? HUE : percent;
             switch (format) {
@@ -2138,7 +2153,7 @@
         };
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var RGBA = __webpack_require__(27), CORE = __webpack_require__(4), EXPORTS = module.exports = CORE.assign({}, RGBA);
+        var RGBA = __webpack_require__(27), CORE = __webpack_require__(2), EXPORTS = module.exports = CORE.assign({}, RGBA);
         function toHex(integer) {
             var M = Math;
             integer = M.max(0, M.min(integer, 255));
@@ -2155,7 +2170,7 @@
     }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
-            var CORE = __webpack_require__(4), INFO = __webpack_require__(14), STRING = __webpack_require__(22), EVENTS = null, PAGE_UNLOADED = false, MIDDLEWARE = CORE.middleware("libdom.event"), IE_CUSTOM_EVENTS = {}, ERROR_OBSERVABLE_NO_SUPPORT = STRING[1131], ERROR_INVALID_TYPE = STRING[1132], ERROR_INVALID_HANDLER = STRING[1133], IE_ON = "on", IE_BUBBLE_EVENT = "beforeupdate", IE_NO_BUBBLE_EVENT = "propertychanged", EXPORTS = module.exports = {
+            var CORE = __webpack_require__(2), INFO = __webpack_require__(14), STRING = __webpack_require__(22), EVENTS = null, PAGE_UNLOADED = false, MIDDLEWARE = CORE.middleware("libdom.event"), IE_CUSTOM_EVENTS = {}, ERROR_OBSERVABLE_NO_SUPPORT = STRING[1131], ERROR_INVALID_TYPE = STRING[1132], ERROR_INVALID_HANDLER = STRING[1133], IE_ON = "on", IE_BUBBLE_EVENT = "beforeupdate", IE_NO_BUBBLE_EVENT = "propertychanged", EXPORTS = module.exports = {
                 on: listen,
                 un: unlisten,
                 fire: dispatch,
@@ -2461,7 +2476,7 @@
     }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
-            var CORE = __webpack_require__(4), DETECTED = __webpack_require__(14), STRING = __webpack_require__(22), DOM = __webpack_require__(21), CSS = __webpack_require__(23), ERROR_INVALID_ELEMENT = STRING[1101], ERROR_INVALID_DOM = STRING[1102], OFFSET_TOP = "offsetTop", OFFSET_LEFT = "offsetLeft", OFFSET_WIDTH = "offsetWidth", OFFSET_HEIGHT = "offsetHeight", MARGIN_TOP = "marginTop", MARGIN_LEFT = "marginLeft", SCROLL_TOP = "scrollTop", SCROLL_LEFT = "scrollLeft", BOUNDING_RECT = "getBoundingClientRect", DEFAULTVIEW = null, ELEMENT_VIEW = 1, PAGE_VIEW = 2, USE_ZOOM_FACTOR = false, IE_PAGE_STAT_ACCESS = "documentElement", boundingRect = false, getPageScroll = null, getOffset = null, getSize = null, getScreenSize = null, EXPORTS = {
+            var CORE = __webpack_require__(2), DETECTED = __webpack_require__(14), STRING = __webpack_require__(22), DOM = __webpack_require__(21), CSS = __webpack_require__(23), ERROR_INVALID_ELEMENT = STRING[1101], ERROR_INVALID_DOM = STRING[1102], OFFSET_TOP = "offsetTop", OFFSET_LEFT = "offsetLeft", OFFSET_WIDTH = "offsetWidth", OFFSET_HEIGHT = "offsetHeight", MARGIN_TOP = "marginTop", MARGIN_LEFT = "marginLeft", SCROLL_TOP = "scrollTop", SCROLL_LEFT = "scrollLeft", BOUNDING_RECT = "getBoundingClientRect", DEFAULTVIEW = null, ELEMENT_VIEW = 1, PAGE_VIEW = 2, USE_ZOOM_FACTOR = false, IE_PAGE_STAT_ACCESS = "documentElement", boundingRect = false, getPageScroll = null, getOffset = null, getSize = null, getScreenSize = null, EXPORTS = {
                 offset: offset,
                 size: size,
                 box: box,
@@ -2869,7 +2884,7 @@
         }());
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var STRING = __webpack_require__(22), CORE = __webpack_require__(4), EASING = __webpack_require__(35), COLOR = __webpack_require__(24), CSS = __webpack_require__(23), DIMENSION = __webpack_require__(32), SESSION_ACCESS = "__animate_session", BOX_POSITION = {
+        var STRING = __webpack_require__(22), CORE = __webpack_require__(2), EASING = __webpack_require__(35), COLOR = __webpack_require__(24), CSS = __webpack_require__(23), DIMENSION = __webpack_require__(32), SESSION_ACCESS = "__animate_session", BOX_POSITION = {
             left: 0,
             top: 1,
             right: 2,
@@ -3206,165 +3221,48 @@
         module.exports = EXPORTS;
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var HTTP_DRIVERS = __webpack_require__(4).createRegistry(), EXPORTS = {
+        var LIBCORE = __webpack_require__(2), HTTP_DRIVERS = LIBCORE.createRegistry(), DEFAULT = null, EXPORTS = {
             register: register,
-            get: get
+            get: get,
+            request: request,
+            use: defaultDriver
         };
         function register(name, api) {
-            var E = EXPORTS;
             HTTP_DRIVERS.set(name, api);
-            if (!E.defaultDriver) {
-                E.defaultDriver = name;
+            if (!DEFAULT) {
+                DEFAULT = name;
             }
-            return E.chain;
+            return EXPORTS.chain;
         }
         function get(name) {
             return HTTP_DRIVERS.get(name);
         }
+        function request(url, config) {
+            var CORE = LIBCORE, isObject = CORE.object, getDriver = get;
+            var Driver = null;
+            if (isObject(url)) {
+                Driver = url.driver;
+            }
+            if (!getDriver(Driver) && isObject(config)) {
+                Driver = config.driver;
+            }
+            Driver = getDriver(Driver) || getDriver(DEFAULT);
+            console.log("finally? ", Driver);
+            if (Driver) {
+                return new Driver().request(url, config);
+            }
+            return Promise.reject("Unable to find driver for http transport");
+        }
+        function defaultDriver(driver) {
+            if (HTTP_DRIVERS.get(driver)) {
+                DEFAULT = driver;
+            }
+            return EXPORTS.chain;
+        }
         module.exports = EXPORTS;
     }, function(module, exports, __webpack_require__) {
-        (function(global) {
-            "use strict";
-            var LIBCORE = __webpack_require__(4), BASE = __webpack_require__(38), HTTP_REQUEST = LIBCORE.buildInstance(BASE.request);
-            function Xhr() {}
-            LIBCORE.assign(Xhr.prototype = HTTP_REQUEST, {
-                driver: void 0,
-                prepare: function(config) {
-                    var me = this, driver = new global.XMLHttpRequest();
-                    me.driver = driver;
-                    driver.open(me.url, me.method.toUpperCase(), true);
-                    driver = null;
-                    return config;
-                },
-                transport: function(config) {
-                    return config;
-                },
-                process: function(config) {
-                    return config;
-                }
-            });
-            console.log("build ", LIBCORE.buildInstance(BASE.request));
-            module.exports = Xhr;
-        }).call(exports, function() {
-            return this;
-        }());
-    }, function(module, exports, __webpack_require__) {
         "use strict";
-        var LIBCORE = __webpack_require__(4), HEADERS = __webpack_require__(39), METHODS = [ "head", "options", "trace", "get", "post", "put", "delete" ];
-        function bind(instance, method) {
-            function bound() {
-                return method.apply(instance, arguments);
-            }
-            return bound;
-        }
-        function HttpRequest() {
-            var me = this, binder = bind;
-            me.prepare = binder(me, me.prepare);
-            me.transport = binder(me, me.transport);
-            me.process = binder(me, me.process);
-            me.success = binder(me, me.success);
-            me.error = binder(me, me.error);
-        }
-        function HttpResponse(request) {
-            var me = this;
-            request.response = me;
-            me.request = request;
-            if (!request.aborted) {
-                me.process(request);
-            }
-        }
-        HttpRequest.prototype = {
-            type: "base",
-            responder: HttpResponse,
-            response: null,
-            aborted: false,
-            requesting: false,
-            status: 0,
-            statusText: "Uninitialized",
-            url: null,
-            method: "get",
-            headers: void 0,
-            body: void 0,
-            constructor: HttpRequest,
-            request: function(url, config) {
-                var CORE = LIBCORE, me = this, methodList = METHODS;
-                var item;
-                if (CORE.object(url)) {
-                    config = url;
-                    url = config.url;
-                }
-                if (CORE.string(url) && CORE.object(config)) {
-                    config.url = me.url;
-                    item = config.method;
-                    if (methodList.indexOf(item) !== -1) {
-                        me.method = item;
-                    }
-                    item = HEADERS.parse(config.headers);
-                    if (CORE.array(item)) {
-                        me.headers = item;
-                    }
-                    return Promise.resolve(config).then(me.prepare).then(me.send).then(me.process)["catch"](me.error);
-                }
-                return Promise.reject("Invalid request configuration");
-            },
-            prepare: function() {
-                return Promise.reject("No prepare() implementation.");
-            },
-            transport: function() {
-                return Promise.reject("No send() implementation.");
-            },
-            process: function() {
-                return Promise.reject("No process() implemenation.");
-            },
-            success: function(flag) {
-                var me = this;
-                if (flag === false) {
-                    if (!me.status) {
-                        me.status = 400;
-                        me.statusText = "Bad Request";
-                    }
-                    return me.error(me.statusText);
-                }
-                me.cleanup(me.aborted);
-                new me.responder(me);
-                return me;
-            },
-            error: function(error) {
-                var me = this;
-                if (me.aborted) {
-                    return me.success();
-                }
-                return Promise.reject(error);
-            },
-            abort: function() {
-                var me = this;
-                if (me.requesting && !me.aborted) {
-                    me.aborted = true;
-                }
-                return me;
-            },
-            cleanup: function(aborted) {
-                return this;
-            },
-            eachHeader: function(name, value) {}
-        };
-        HttpResponse.prototype = {
-            constructor: HttpResponse,
-            request: void 0,
-            headers: void 0,
-            body: void 0,
-            contentType: null,
-            data: null,
-            process: function(request) {},
-            to: function(format) {}
-        };
-        module.exports = {
-            request: HttpRequest,
-            response: HttpResponse
-        };
-    }, function(module, exports, __webpack_require__) {
-        "use strict";
-        var LIBCORE = __webpack_require__(4), LINE_SPLIT_RE = /\r\n|\r|\n/, LINE_PAIR_RE = /^([^ \r\n\t\s\:]+)\:(.+)$/, LINE_EXTENSION_RE = /^([ \r\n\t\s]+.+|[^\:]+)$/, LINE_REQUEST_RE = /^([a-z]+)[ \t\s]+(\/[^\:]+)[ \t\s]+(HTTP\/[0-9]+\.[0-9]+)$/i, LINE_RESPONSE_RE = /^(HTTP\/[0-9]+.[0-9]+)[ \t\s]+([0-9]+)[ \t\s]+([a-z0-9\-\_]+)$/i, LINE_TRIM = /^[ \t\s]*(.+)[ \t\s]*$/, EXPORTS = {
+        var LIBCORE = __webpack_require__(2), LINE_SPLIT_RE = /\r\n|\r|\n/, LINE_PAIR_RE = /^([^ \r\n\t\s\:]+)\:(.+)$/, LINE_EXTENSION_RE = /^([ \r\n\t\s]+.+|[^\:]+)$/, LINE_REQUEST_RE = /^([a-z]+)[ \t\s]+(\/[^\:]+)[ \t\s]+(HTTP\/[0-9]+\.[0-9]+)$/i, LINE_RESPONSE_RE = /^(HTTP\/[0-9]+.[0-9]+)[ \t\s]+([0-9]+)[ \t\s]+([a-z0-9\-\_]+)$/i, LINE_TRIM = /^[ \t\s]*(.+)[ \t\s]*$/, EXPORTS = {
             each: eachHeader,
             parse: parse
         };
@@ -3431,13 +3329,14 @@
                         }
                     }
                 }
+            } else {
+                return false;
             }
-            return EXPORTS.chain;
+            return true;
         }
         function parse(headers) {
             var values = {};
-            eachHeader(headers, parseCallback, values);
-            return values;
+            return eachHeader(headers, parseCallback, values) && values;
         }
         function parseCallback(name, values, target) {
             target[name.charAt(0).toUpperCase() + name.substring(1, name.length).toLowerCase()] = values;
@@ -3454,6 +3353,323 @@
             return array;
         }
         module.exports = EXPORTS;
+    }, function(module, exports, __webpack_require__) {
+        "use strict";
+        var LIBCORE = __webpack_require__(2), TRANSFORMERS = LIBCORE.createRegistry(), MIME_TYPE_RE = /^([a-z0-9\-\_]+)\/([a-z\-\_0-9]+)(([ \s\t]*\;([^\;]+))*)$/, MIME_TYPE_PARAMS_RE = /^[ \t\s]*([a-z0-9\-\_]+)\=(\"([^\"]+)\"|[a-z0-9\-\_]+)[ \t\s]*$/, QUOTED_RE = /^\"[^\"]+\"/, EXPORTS = {
+            register: register,
+            transform: transform,
+            parse: parseType
+        };
+        var item;
+        function parseType(type) {
+            var mtypeRe = MIME_TYPE_RE, paramRe = MIME_TYPE_PARAMS_RE, quotedRe = QUOTED_RE, CORE = LIBCORE, paramGlue = "; ", parameterObject = null;
+            var match, subtype, parameters, name, value, l, defaultType;
+            if (CORE.string(type) && mtypeRe.test(type)) {
+                match = type.match(mtypeRe);
+                type = match[1].toLowerCase();
+                subtype = match[2].toLowerCase();
+                parameters = match[3] || "";
+                if (parameters) {
+                    parameterObject = {};
+                    parameters = parameters.split(";");
+                    l = parameters.length;
+                    for (;l--; ) {
+                        match = parameters[l].match(paramRe);
+                        if (match) {
+                            name = match[1].toLowerCase();
+                            value = match[2];
+                            parameters[l] = name + "=" + value;
+                            parameterObject[name] = quotedRe.test(value) ? value.substring(1, value.length - 1) : value;
+                        }
+                    }
+                    parameters = parameters.join(paramGlue);
+                }
+                defaultType = type + "/" + subtype;
+                return {
+                    string: defaultType + (parameters ? paramGlue + parameters : ""),
+                    defaultType: defaultType,
+                    type: type,
+                    subtype: subtype,
+                    params: parameterObject
+                };
+            }
+            return void 0;
+        }
+        function register(type, transformFunction) {
+            var CORE = LIBCORE, registry = TRANSFORMERS;
+            var defaultType;
+            type = CORE.method(transformFunction) && parseType(type);
+            if (type) {
+                defaultType = type.defaultType;
+                if (!registry.get(defaultType)) {
+                    registry.set(defaultType, transformFunction);
+                }
+                registry.set(defaultType, transformFunction);
+            }
+            return EXPORTS.chain;
+        }
+        function transform(type, data) {
+            var registry = TRANSFORMERS, undef = void 0;
+            var transformer, params;
+            type = parseType(type);
+            if (type) {
+                transformer = registry.get(type.string);
+                params = type.params;
+                if (!transformer) {
+                    if (!params) {
+                        return undef;
+                    }
+                    transformer = registry.get(type.defaultType);
+                    params = null;
+                }
+                return transformer(data, params);
+            }
+            return undef;
+        }
+        module.exports = EXPORTS.chain = EXPORTS;
+        item = __webpack_require__(39);
+        register("text/http-header", item).register("text/http-header-request", item);
+        item = __webpack_require__(40);
+        register("application/octet-stream", item).register("application/octet-stream-request", item);
+        item = __webpack_require__(41);
+        register("application/json-request", item).register("text/json-request", item);
+        item = __webpack_require__(42);
+        register("application/json", item).register("text/json", item);
+    }, function(module, exports, __webpack_require__) {
+        "use strict";
+        var HEADER = __webpack_require__(37);
+        module.exports = HEADER.parse;
+    }, function(module, exports) {
+        "use strict";
+        function convert(data) {
+            return data;
+        }
+        module.exports = convert;
+    }, function(module, exports, __webpack_require__) {
+        (function(global) {
+            "use strict";
+            var LIBCORE = __webpack_require__(2), EMPTY = "", json = global.JSON;
+            if (!json) {
+                json = false;
+            }
+            function convert(data) {
+                if (!json) {
+                    throw new Error("JSON is not supported in this platform");
+                } else if (!LIBCORE.object(data)) {
+                    return EMPTY;
+                }
+                try {
+                    data = json.stringify(data);
+                } catch (e) {
+                    return EMPTY;
+                }
+                return data;
+            }
+            module.exports = convert;
+        }).call(exports, function() {
+            return this;
+        }());
+    }, function(module, exports, __webpack_require__) {
+        (function(global) {
+            "use strict";
+            var LIBCORE = __webpack_require__(2), json = global.JSON;
+            if (!json) {
+                json = false;
+            }
+            function convert(data) {
+                if (!json) {
+                    throw new Error("JSON is not supported in this platform");
+                } else if (!LIBCORE.string(data)) {
+                    return void 0;
+                }
+                try {
+                    data = json.parse(data);
+                } catch (e) {
+                    return void 0;
+                }
+                return data;
+            }
+            module.exports = convert;
+        }).call(exports, function() {
+            return this;
+        }());
+    }, function(module, exports, __webpack_require__) {
+        (function(global) {
+            "use strict";
+            var LIBCORE = __webpack_require__(2), BASE = __webpack_require__(44), BASE_DRIVER = BASE.request, HTTP_REQUEST = LIBCORE.buildInstance(BASE_DRIVER);
+            function Xhr() {
+                BASE_DRIVER.apply(this, arguments);
+            }
+            LIBCORE.assign(Xhr.prototype = HTTP_REQUEST, {
+                constructor: Xhr,
+                driver: void 0,
+                prepare: function(config) {
+                    var me = this, driver = new global.XMLHttpRequest();
+                    me.driver = driver;
+                    driver.open(me.url, me.method.toUpperCase(), true);
+                    driver = null;
+                    console.log("prepared!");
+                    return config;
+                },
+                transport: function(config) {
+                    console.log("transport!");
+                    return config;
+                },
+                process: function(config) {
+                    console.log("processed!");
+                    return config;
+                }
+            });
+            console.log("build ", LIBCORE.buildInstance(BASE.request));
+            module.exports = Xhr;
+        }).call(exports, function() {
+            return this;
+        }());
+    }, function(module, exports, __webpack_require__) {
+        "use strict";
+        var LIBCORE = __webpack_require__(2), TRANSFORM = __webpack_require__(38), METHODS = [ "head", "options", "trace", "get", "post", "put", "delete" ];
+        function bind(instance, method) {
+            function bound() {
+                return method.apply(instance, arguments);
+            }
+            return bound;
+        }
+        function HttpRequest() {
+            var me = this, binder = bind;
+            me.prepare = binder(me, me.prepare);
+            me.transport = binder(me, me.transport);
+            me.process = binder(me, me.process);
+            me.success = binder(me, me.success);
+            me.error = binder(me, me.error);
+            console.log("bound all methods");
+        }
+        function HttpResponse(request) {
+            var me = this;
+            request.response = me;
+            me.request = request;
+            if (!request.aborted) {
+                me.process(request);
+            }
+        }
+        HttpRequest.prototype = {
+            type: "base",
+            responder: HttpResponse,
+            response: null,
+            aborted: false,
+            requesting: false,
+            status: 0,
+            statusText: "Uninitialized",
+            url: null,
+            method: "get",
+            headers: null,
+            body: null,
+            data: null,
+            constructor: HttpRequest,
+            request: function(url, config) {
+                var CORE = LIBCORE, isObject = CORE.object, me = this, methodList = METHODS, transformer = TRANSFORM;
+                var item;
+                if (isObject(url)) {
+                    config = url;
+                    url = config.url;
+                }
+                if (CORE.string(url) && isObject(config)) {
+                    config.url = me.url;
+                    item = config.method;
+                    if (methodList.indexOf(item) !== -1) {
+                        me.method = item;
+                    }
+                    item = transformer.transform("text/http-header", config.headers);
+                    if (item) {
+                        me.headers = item;
+                    } else if (!isObject(me.headers)) {
+                        me.headers = null;
+                    }
+                    item = config.data || config.params || config.body;
+                    if (isObject(item)) {
+                        me.data = item;
+                    }
+                    item = me.data || me.body;
+                    if (item) {
+                        me.body = transformer.transform((me.header("Content-type", 0) || "application/octet-stream") + "-request", item);
+                    }
+                    console.log("me: ", me.error);
+                    return Promise.resolve(config).then(me.prepare).then(me.send).then(me.process)["catch"](me.error);
+                }
+                return Promise.reject("Invalid request configuration");
+            },
+            prepare: function(data) {
+                console.log("bunga! ", this);
+                return data;
+            },
+            transport: function() {
+                return Promise.reject("No transport() implementation.");
+            },
+            process: function(data) {
+                return data;
+            },
+            success: function(flag) {
+                var me = this, aborted = me.aborted;
+                if (flag === false) {
+                    if (!me.status) {
+                        me.status = 400;
+                        me.statusText = "Bad Request";
+                    }
+                    return me.error(me.statusText);
+                }
+                if (!aborted) {
+                    new me.responder(me);
+                }
+                me.cleanup(aborted);
+                return me;
+            },
+            error: function(error) {
+                var me = this;
+                console.log("me!!! ", me);
+                if (me.aborted) {
+                    return me.success();
+                }
+                return Promise.reject(error);
+            },
+            abort: function() {
+                var me = this;
+                if (me.requesting && !me.aborted) {
+                    me.aborted = true;
+                }
+                return me;
+            },
+            cleanup: function(aborted) {
+                return this;
+            },
+            header: function(name, index) {
+                var CORE = LIBCORE, headers = this.headers;
+                var found;
+                if (CORE.object(headers) && CORE.string(name)) {
+                    name = name.charAt(0).toUpperCase() + name.substring(1, name.length).toLowerCase();
+                    if (CORE.contains(headers, name)) {
+                        found = headers[name];
+                        if (!CORE.number(index)) {
+                            return found;
+                        }
+                        return index in found ? found[index] : found[found.length - 1];
+                    }
+                }
+                return void 0;
+            }
+        };
+        HttpResponse.prototype = {
+            constructor: HttpResponse,
+            request: void 0,
+            headers: void 0,
+            body: void 0,
+            contentType: null,
+            data: null,
+            process: function(request) {},
+            to: function(format) {}
+        };
+        module.exports = {
+            request: HttpRequest,
+            response: HttpResponse
+        };
     } ]);
 });
 

@@ -2,14 +2,18 @@
 
 var LIBCORE = require("libcore"),
     BASE = require("../base.js"),
-    HTTP_REQUEST = LIBCORE.buildInstance(BASE.request);
+    BASE_DRIVER = BASE.request,
+    HTTP_REQUEST = LIBCORE.buildInstance(BASE_DRIVER);
 
 function Xhr() {
-    
+    BASE_DRIVER.apply(this, arguments);
 }
 
 
 LIBCORE.assign(Xhr.prototype = HTTP_REQUEST, {
+    
+    constructor: Xhr,
+    
     driver: void(0),
     
     prepare: function (config) {
@@ -20,17 +24,20 @@ LIBCORE.assign(Xhr.prototype = HTTP_REQUEST, {
         me.driver = driver;
         driver.open(me.url, me.method.toUpperCase(), true);
         driver = null;
+        
+        console.log('prepared!');
         return config;
     },
     
     transport: function (config) {
-        
+        console.log('transport!');
         //this.driver.send();
         
         return config;
     },
     
     process: function (config) {
+        console.log('processed!');
         return config;
     }
     

@@ -1,7 +1,7 @@
 'use strict';
 
 var LIBCORE = require("libcore"),
-    HEADERS = require("./header.js"),
+    TRANSFORM = require("./transform.js"),
     METHODS = ["head",
                 "options",
                 "trace",
@@ -27,6 +27,7 @@ function HttpRequest() {
     me.process = binder(me, me.process);
     me.success = binder(me, me.success);
     me.error = binder(me, me.error);
+    console.log('bound all methods');
 }
 
 function HttpResponse(request) {
@@ -53,22 +54,25 @@ HttpRequest.prototype = {
     statusText: 'Uninitialized',
     url: null,
     method: 'get',
-    headers: void(0),
-    body: void(0),
+    headers: null,
+    body: null,
+    data: null,
     constructor: HttpRequest,
     
     request: function (url, config) {
         var CORE = LIBCORE,
+            isObject = CORE.object,
             me = this,
-            methodList = METHODS;
+            methodList = METHODS,
+            transformer = TRANSFORM;
         var item;
         
-        if (CORE.object(url)) {
+        if (isObject(url)) {
             config = url;
             url = config.url;
         }
         
-        if (CORE.string(url) && CORE.object(config)) {
+        if (CORE.string(url) && isObject(config)) {
             config.url = me.url;
             
             // process basic http config
@@ -80,12 +84,32 @@ HttpRequest.prototype = {
             }
             
             // override headers
-            item = HEADERS.parse(config.headers);
+            item = transformer.transform('text/http-header', config.headers);
             
-            if (CORE.array(item)) {
+            if (item) {
                 me.headers = item;
             }
+            else if (!isObject(me.headers)) {
+                me.headers = null;
+            }
             
+            // set request data
+            item = config.data || config.params || config.body;
+            
+            if (isObject(item)) {
+                me.data = item;
+            }
+            
+            // set default request body
+            item = me.data || me.body;
+            
+            if (item) {
+                me.body = transformer.transform(
+                                (me.header('Content-type', 0) ||
+                                    'application/octet-stream') + '-request',
+                                item);
+            }
+            console.log('me: ', me.error);
             return Promise.resolve(config).
                     then(me.prepare).
                     then(me.send).
@@ -96,20 +120,22 @@ HttpRequest.prototype = {
         return Promise.reject("Invalid request configuration");
     },
     
-    prepare: function () {
-        return Promise.reject("No prepare() implementation.");
+    prepare: function (data) {
+        console.log('bunga! ', this);
+        return data;
     },
     
     transport: function () {
-        return Promise.reject("No send() implementation.");
+        return Promise.reject("No transport() implementation.");
     },
     
-    process: function () {
-        return Promise.reject("No process() implemenation.");
+    process: function (data) {
+        return data;
     },
     
     success: function (flag) {
-        var me = this;
+        var me = this,
+            aborted = me.aborted;
         
         // request error when returning false
         if (flag === false) {
@@ -120,9 +146,11 @@ HttpRequest.prototype = {
             return me.error(me.statusText);
         }
         
-        me.cleanup(me.aborted);
+        if (!aborted) {
+            new (me.responder)(me);
+        }
         
-        new (me.responder)(me);
+        me.cleanup(aborted);
         
         return me;
     
@@ -130,7 +158,7 @@ HttpRequest.prototype = {
     
     error: function (error) {
         var me = this;
-        
+        console.log('me!!! ', me);
         if (me.aborted) {
             return me.success();
         }
@@ -154,8 +182,30 @@ HttpRequest.prototype = {
         return this;
     },
     
-    eachHeader: function (name, value) {
+    header: function (name, index) {
+        var CORE = LIBCORE,
+            headers = this.headers;
+        var found;
         
+        if (CORE.object(headers) && CORE.string(name)) {
+            name = name.charAt(0).toUpperCase() +
+                    name.substring(1, name.length).toLowerCase();
+            if (CORE.contains(headers, name)) {
+                found = headers[name];
+                
+                if (!CORE.number(index)) {
+                    return found;
+                    
+                }
+                
+                return index in found ?
+                            found[index] :
+                            found[found.length - 1];
+                
+            }
+        }
+        
+        return void(0);
     }
 };
 

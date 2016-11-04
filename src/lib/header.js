@@ -124,15 +124,18 @@ function eachHeader(input, callback, scope) {
             }
         }
     }
+    else {
+        
+        return false;
+    }
     
-    return EXPORTS.chain;
+    return true;
     
 }
 
 function parse(headers) {
     var values = {};
-    eachHeader(headers, parseCallback, values);
-    return values;
+    return eachHeader(headers, parseCallback, values) && values;
 }
 
 function parseCallback(name, values, target) {
