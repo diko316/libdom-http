@@ -3247,7 +3247,6 @@
                 Driver = config.driver;
             }
             Driver = getDriver(Driver) || getDriver(DEFAULT);
-            console.log("finally? ", Driver);
             if (Driver) {
                 return new Driver().request(url, config);
             }
@@ -3338,8 +3337,9 @@
             var values = {};
             return eachHeader(headers, parseCallback, values) && values;
         }
-        function parseCallback(name, values, target) {
-            target[name.charAt(0).toUpperCase() + name.substring(1, name.length).toLowerCase()] = values;
+        function parseCallback(name, values) {
+            console.log("name: ", name, " new name: ", name.charAt(0).toUpperCase() + name.substring(1, name.length).toLowerCase());
+            this[name.charAt(0).toUpperCase() + name.substring(1, name.length).toLowerCase()] = values;
         }
         function cleanArrayValues(array) {
             var CORE = LIBCORE, isString = CORE.string, isNumber = CORE.number, l = array.length;
@@ -3496,27 +3496,54 @@
     }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
-            var LIBCORE = __webpack_require__(2), BASE = __webpack_require__(44), BASE_DRIVER = BASE.request, HTTP_REQUEST = LIBCORE.buildInstance(BASE_DRIVER);
+            var LIBCORE = __webpack_require__(2), BASE = __webpack_require__(44), STATE_UNSENT = 0, STATE_OPENED = 1, STATE_HEADERS_RECEIVED = 2, STATE_LOADING = 3, STATE_DONE = 4, HTTP_REQUEST = LIBCORE.buildInstance(BASE.request), BASE_DRIVER = HTTP_REQUEST.constructor;
             function Xhr() {
                 BASE_DRIVER.apply(this, arguments);
             }
             LIBCORE.assign(Xhr.prototype = HTTP_REQUEST, {
                 constructor: Xhr,
                 driver: void 0,
+                bindNames: HTTP_REQUEST.bindNames.concat([ "onReadyStateChange" ]),
+                onReadyStateChange: function(resolve, reject) {
+                    var driver = this.driver;
+                    var status;
+                    switch (driver.readyState) {
+                      case STATE_UNSENT:
+                        break;
+
+                      case STATE_OPENED:
+                        break;
+
+                      case STATE_HEADERS_RECEIVED:
+                        break;
+
+                      case STATE_LOADING:
+                        break;
+
+                      case STATE_DONE:
+                        status = driver.status;
+                        if (status < 200 || status > 399) {
+                            reject(status);
+                        } else {
+                            resolve(status);
+                        }
+                    }
+                    driver = null;
+                },
                 prepare: function(config) {
                     var me = this, driver = new global.XMLHttpRequest();
+                    console.log(me.url);
                     me.driver = driver;
-                    driver.open(me.url, me.method.toUpperCase(), true);
+                    driver.open(me.method.toUpperCase(), me.url, true);
                     driver = null;
-                    console.log("prepared!");
                     return config;
                 },
-                transport: function(config) {
-                    console.log("transport!");
-                    return config;
+                transport: function() {
+                    var me = this, promise = new Promise(me.onReadyStateChange);
+                    me.driver.send(me.body || null);
+                    return promise;
                 },
                 process: function(config) {
-                    console.log("processed!");
                     return config;
                 }
             });
@@ -3527,7 +3554,7 @@
         }());
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var LIBCORE = __webpack_require__(2), TRANSFORM = __webpack_require__(38), METHODS = [ "head", "options", "trace", "get", "post", "put", "delete" ];
+        var LIBCORE = __webpack_require__(2), TRANSFORM = __webpack_require__(38), METHODS = [ "head", "options", "trace", "get", "post", "put", "delete" ], HEADER_TRANSFORM_TYPE = "text/http-header", DEFAULTS = LIBCORE.createRegistry();
         function bind(instance, method) {
             function bound() {
                 return method.apply(instance, arguments);
@@ -3535,13 +3562,12 @@
             return bound;
         }
         function HttpRequest() {
-            var me = this, binder = bind;
-            me.prepare = binder(me, me.prepare);
-            me.transport = binder(me, me.transport);
-            me.process = binder(me, me.process);
-            me.success = binder(me, me.success);
-            me.error = binder(me, me.error);
-            console.log("bound all methods");
+            var me = this, names = me.bindNames, l = names.length, binder = bind;
+            var name;
+            for (;l--; ) {
+                name = names[l];
+                me[name] = binder(me, me[name]);
+            }
         }
         function HttpResponse(request) {
             var me = this;
@@ -3564,25 +3590,34 @@
             headers: null,
             body: null,
             data: null,
+            bindNames: [ "prepare", "transport", "process", "success", "error" ],
             constructor: HttpRequest,
             request: function(url, config) {
-                var CORE = LIBCORE, isObject = CORE.object, me = this, methodList = METHODS, transformer = TRANSFORM;
-                var item;
+                var CORE = LIBCORE, isObject = CORE.object, me = this, methodList = METHODS, transformer = TRANSFORM, headerTransformType = HEADER_TRANSFORM_TYPE, assign = CORE.assign;
+                var item, defaults;
                 if (isObject(url)) {
                     config = url;
                     url = config.url;
                 }
                 if (CORE.string(url) && isObject(config)) {
-                    config.url = me.url;
+                    defaults = DEFAULTS.clone();
+                    config = assign(assign({}, defaults), config);
+                    me.url = url;
                     item = config.method;
                     if (methodList.indexOf(item) !== -1) {
                         me.method = item;
                     }
-                    item = transformer.transform("text/http-header", config.headers);
+                    item = transformer.transform(headerTransformType, defaults.headers);
                     if (item) {
                         me.headers = item;
-                    } else if (!isObject(me.headers)) {
-                        me.headers = null;
+                    }
+                    item = transformer.transform(headerTransformType, config.headers);
+                    if (item) {
+                        if (isObject(me.headers)) {
+                            assign(me.headers, item);
+                        } else {
+                            me.headers = item;
+                        }
                     }
                     item = config.data || config.params || config.body;
                     if (isObject(item)) {
@@ -3592,13 +3627,11 @@
                     if (item) {
                         me.body = transformer.transform((me.header("Content-type", 0) || "application/octet-stream") + "-request", item);
                     }
-                    console.log("me: ", me.error);
-                    return Promise.resolve(config).then(me.prepare).then(me.send).then(me.process)["catch"](me.error);
+                    return Promise.resolve(config).then(me.prepare).then(me.transport).then(me.process)["catch"](me.error);
                 }
                 return Promise.reject("Invalid request configuration");
             },
             prepare: function(data) {
-                console.log("bunga! ", this);
                 return data;
             },
             transport: function() {
@@ -3668,8 +3701,12 @@
         };
         module.exports = {
             request: HttpRequest,
-            response: HttpResponse
+            response: HttpResponse,
+            defaults: DEFAULTS
         };
+        DEFAULTS.set("headers", {
+            "content-type": "application/json"
+        });
     } ]);
 });
 

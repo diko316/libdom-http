@@ -138,8 +138,15 @@ function parse(headers) {
     return eachHeader(headers, parseCallback, values) && values;
 }
 
-function parseCallback(name, values, target) {
-    target[name.charAt(0).toUpperCase() +
+function parseCallback(name, values) {
+    console.log('name: ', name, ' new name: ',
+        name.charAt(0).toUpperCase() +
+            name.
+                substring(1, name.length).
+                toLowerCase());
+    
+    /* jshint validthis:true */
+    this[name.charAt(0).toUpperCase() +
             name.
                 substring(1, name.length).
                 toLowerCase()] = values;

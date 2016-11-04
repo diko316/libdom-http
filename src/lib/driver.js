@@ -40,8 +40,6 @@ function request(url, config) {
     
     Driver = getDriver(Driver) || getDriver(DEFAULT);
     
-    console.log('finally? ', Driver);
-    
     if (Driver) {
         return (new Driver()).request(url, config);
     }

@@ -8,7 +8,9 @@ var LIBCORE = require("libcore"),
                 "get",
                 "post",
                 "put",
-                "delete"];
+                "delete"],
+    HEADER_TRANSFORM_TYPE = 'text/http-header',
+    DEFAULTS = LIBCORE.createRegistry();
 
 function bind(instance, method) {
     function bound() {
@@ -19,15 +21,16 @@ function bind(instance, method) {
 
 function HttpRequest() {
     var me = this,
+        names = me.bindNames,
+        l = names.length,
         binder = bind;
-    
+    var name;
     // bind for promises
-    me.prepare = binder(me, me.prepare);
-    me.transport = binder(me, me.transport);
-    me.process = binder(me, me.process);
-    me.success = binder(me, me.success);
-    me.error = binder(me, me.error);
-    console.log('bound all methods');
+    for (; l--;) {
+        name = names[l];
+        me[name] = binder(me, me[name]);
+    }
+    
 }
 
 function HttpResponse(request) {
@@ -57,6 +60,9 @@ HttpRequest.prototype = {
     headers: null,
     body: null,
     data: null,
+    
+    bindNames: ['prepare', 'transport', 'process', 'success', 'error'],
+    
     constructor: HttpRequest,
     
     request: function (url, config) {
@@ -64,8 +70,10 @@ HttpRequest.prototype = {
             isObject = CORE.object,
             me = this,
             methodList = METHODS,
-            transformer = TRANSFORM;
-        var item;
+            transformer = TRANSFORM,
+            headerTransformType = HEADER_TRANSFORM_TYPE,
+            assign = CORE.assign;
+        var item, defaults;
         
         if (isObject(url)) {
             config = url;
@@ -73,7 +81,13 @@ HttpRequest.prototype = {
         }
         
         if (CORE.string(url) && isObject(config)) {
-            config.url = me.url;
+            
+            // create config from defaults
+            defaults = DEFAULTS.clone();
+            
+            config = assign(assign({}, defaults), config);
+            
+            me.url = url;
             
             // process basic http config
             item = config.method;
@@ -84,13 +98,21 @@ HttpRequest.prototype = {
             }
             
             // override headers
-            item = transformer.transform('text/http-header', config.headers);
-            
+            item = transformer.transform(headerTransformType,
+                                        defaults.headers);
             if (item) {
                 me.headers = item;
             }
-            else if (!isObject(me.headers)) {
-                me.headers = null;
+            
+            item = transformer.transform(headerTransformType,
+                                         config.headers);
+            if (item) {
+                if (isObject(me.headers)) {
+                    assign(me.headers, item);
+                }
+                else {
+                    me.headers = item;
+                }
             }
             
             // set request data
@@ -109,10 +131,10 @@ HttpRequest.prototype = {
                                     'application/octet-stream') + '-request',
                                 item);
             }
-            console.log('me: ', me.error);
+            
             return Promise.resolve(config).
                     then(me.prepare).
-                    then(me.send).
+                    then(me.transport).
                     then(me.process)
                     ["catch"](me.error);
         }
@@ -121,7 +143,6 @@ HttpRequest.prototype = {
     },
     
     prepare: function (data) {
-        console.log('bunga! ', this);
         return data;
     },
     
@@ -229,5 +250,13 @@ HttpResponse.prototype = {
 
 module.exports = {
     request: HttpRequest,
-    response: HttpResponse
+    response: HttpResponse,
+    defaults: DEFAULTS
 };
+
+
+
+// set request defaults
+DEFAULTS.set('headers', {
+    'content-type': 'application/json'
+});
