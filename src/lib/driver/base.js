@@ -34,6 +34,7 @@ Request.prototype = {
     response: null,
     
     setup: function (operation) {
+        operation.process();
         return operation;
     },
     /* jshint unused:false */
@@ -73,10 +74,13 @@ Request.prototype = {
     abort: function () {
         var me = this,
             request = me.request;
+        
+        if (!me.aborted) {   
+            me.aborted = true;
             
-        me.aborted = true;
-        if (request && LIBCORE.method(request.resolve)) {
-            request.resolve(0);
+            if (request && LIBCORE.method(request.resolve)) {
+                request.resolve(0);
+            }
         }
     },
     

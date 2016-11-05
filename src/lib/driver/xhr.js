@@ -25,12 +25,18 @@ function applyHeader(value, name) {
 
 
 function Xhr() {
-    BASE.apply(this, arguments);
+    var me = this,
+        args = [me];
+    BASE.apply(me, arguments);
+    
+    MIDDLEWARE.run("after:instantiated", args);
+    
+    args = args[0] = null;
 }
 
 
 Xhr.prototype = LIBCORE.instantiate(BASE, {
-    
+    level: 1,
     bindMethods: BASE_PROTOTYPE.bindMethods.concat([
                     'onReadyStateChange'
                 ]),
@@ -81,6 +87,8 @@ Xhr.prototype = LIBCORE.instantiate(BASE, {
             run = MIDDLEWARE.run;
         var headers;
         
+        BASE_PROTOTYPE.setup.apply(me, arguments);
+        
         me.xhr = xhr;
         
         run("after:setup", args);
@@ -119,18 +127,21 @@ Xhr.prototype = LIBCORE.instantiate(BASE, {
             xhr = me.xhr,
             response = me.response,
             args = [me, xhr],
-            run = MIDDLEWARE.run;
+            run = MIDDLEWARE.run,
+            readyState = xhr.readyState;
         
         if (me.aborted) {
             run("after:abort", args);
         }
         
-        if (xhr.readyState > STATE_LOADING) {
+        if (readyState >= STATE_OPENED) {
             response.status = xhr.status;
             response.statusText = xhr.statusText;
             response.addHeaders(xhr.getAllResponseHeaders());
+        }
+        
+        if (readyState > STATE_LOADING) {
             response.body = xhr.responseText;
-            
             run("after:response", args);
         }
         xhr = args = args[0] = args[1] = null;
@@ -142,14 +153,32 @@ Xhr.prototype = LIBCORE.instantiate(BASE, {
         var me = this,
             request = me.request,
             xhr = me.xhr;
+        var args;
+        
         if (xhr) {
-            me.xhr = xhr = xhr.onreadystatechange = null;
+            args = [me, xhr];
+            MIDDLEWARE.run("after:cleanup", args);
+            me.xhr = args = args[0] = args[1] =
+                    xhr = xhr.onreadystatechange = null;
         }
         if (request) {
             request.reject = null;
             request.resolve = null;
         }
         delete me.xhr;
+    },
+    
+    abort: function () {
+        var me = this,
+            before = me.aborted,
+            result = BASE_PROTOTYPE.abort.apply(me, arguments),
+            xhr = me.xhr;
+        
+        if (!before && me.aborted && xhr) {
+            xhr.abort();
+        }
+        xhr = null;
+        return result;
     }
 });
 

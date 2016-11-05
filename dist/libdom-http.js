@@ -21,22 +21,19 @@
     }([ function(module, exports, __webpack_require__) {
         module.exports = __webpack_require__(1);
     }, function(module, exports, __webpack_require__) {
-        (function(global) {
-            "use strict";
-            var LIBCORE = __webpack_require__(2), rehash = LIBCORE.rehash, DOM = __webpack_require__(12), DRIVER = __webpack_require__(36), REQUEST = __webpack_require__(46), GLOB = global, ENV = DOM.env, EXPORTS = REQUEST.request;
-            if (ENV.browser) {
-                if (GLOB.XMLHttpRequest) {
-                    DRIVER.register("xhr", __webpack_require__(47));
-                }
-            } else if (ENV.nodejs) {}
-            rehash(EXPORTS, REQUEST, {
-                request: "request"
-            });
-            module.exports = EXPORTS["default"] = EXPORTS;
-            GLOB = null;
-        }).call(exports, function() {
-            return this;
-        }());
+        "use strict";
+        var LIBCORE = __webpack_require__(2), DETECT = __webpack_require__(12), DRIVER = __webpack_require__(37), TRANSFORMER = __webpack_require__(47), REQUEST = __webpack_require__(47), rehash = LIBCORE.rehash, register = TRANSFORMER.register, EXPORTS = REQUEST.request;
+        if (DETECT.xhr) {
+            DRIVER.register("xhr", __webpack_require__(48));
+            DRIVER.register("xhr2", __webpack_require__(50));
+        }
+        if (DETECT.formdata) {
+            register("multipart/form-data", false, __webpack_require__(51));
+        }
+        rehash(EXPORTS, REQUEST, {
+            request: "request"
+        });
+        module.exports = EXPORTS["default"] = EXPORTS;
     }, function(module, exports, __webpack_require__) {
         "use strict";
         module.exports = __webpack_require__(3);
@@ -924,22 +921,52 @@
             return this;
         }());
     }, function(module, exports, __webpack_require__) {
+        (function(global) {
+            "use strict";
+            var DOM = __webpack_require__(13), ENV = DOM.env, G = global, XHR = G.XMLHttpRequest, support_xhr = !!XHR, support_xhrx = false, support_xhrmime = false, support_xhrtime = false, support_xhrbin = false, support_xhrprogress = false, support_xdr = !!G.XDomainRequest;
+            if (ENV.browser) {
+                if (XHR) {
+                    XHR = XHR.prototype;
+                    support_xhrx = "withCredentials" in XHR;
+                    support_xhrmime = "overrideMimeType" in XHR;
+                    support_xhrtime = "timeout" in XHR;
+                    support_xhrbin = "sendAsBinary" in XHR;
+                    support_xhrprogress = "onprogress" in XHR;
+                }
+            } else if (ENV.node) {}
+            module.exports = {
+                xhr: support_xhr,
+                xhrx: support_xhrx,
+                xhrmime: support_xhrmime,
+                xhrtime: support_xhrtime,
+                xhrbin: support_xhrbin,
+                xhrbytes: support_xhrprogress,
+                xdr: support_xdr,
+                formdata: !!G.FormData,
+                file: !!G.File,
+                blob: !!G.Blob
+            };
+            G = XHR = null;
+        }).call(exports, function() {
+            return this;
+        }());
+    }, function(module, exports, __webpack_require__) {
         "use strict";
-        module.exports = __webpack_require__(13);
+        module.exports = __webpack_require__(14);
     }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
-            var CORE = __webpack_require__(2), detect = __webpack_require__(14), rehash = CORE.rehash, EXPORTS = {
+            var CORE = __webpack_require__(2), detect = __webpack_require__(15), rehash = CORE.rehash, EXPORTS = {
                 env: CORE.env,
                 info: detect
             };
             var css, event, dimension, selection;
             if (detect) {
-                rehash(EXPORTS, __webpack_require__(21), {
+                rehash(EXPORTS, __webpack_require__(22), {
                     xmlEncode: "xmlEncode",
                     xmlDecode: "xmlDecode"
                 });
-                rehash(EXPORTS, __webpack_require__(22), {
+                rehash(EXPORTS, __webpack_require__(23), {
                     is: "is",
                     isView: "isView",
                     contains: "contains",
@@ -950,36 +977,36 @@
                     add: "add",
                     remove: "remove"
                 });
-                rehash(EXPORTS, css = __webpack_require__(23), {
+                rehash(EXPORTS, css = __webpack_require__(24), {
                     addClass: "add",
                     removeClass: "remove",
                     computedStyle: "computedStyle",
                     stylize: "style"
                 });
-                rehash(EXPORTS, event = __webpack_require__(31), {
+                rehash(EXPORTS, event = __webpack_require__(32), {
                     on: "on",
                     un: "un",
                     purge: "purge",
                     dispatch: "fire",
                     destructor: "ondestroy"
                 });
-                rehash(EXPORTS, dimension = __webpack_require__(32), {
+                rehash(EXPORTS, dimension = __webpack_require__(33), {
                     offset: "offset",
                     size: "size",
                     box: "box",
                     scroll: "scroll",
                     screen: "screen"
                 });
-                rehash(EXPORTS, selection = __webpack_require__(33), {
+                rehash(EXPORTS, selection = __webpack_require__(34), {
                     highlight: "select",
                     noHighlight: "unselectable",
                     clearHighlight: "clear"
                 });
-                rehash(EXPORTS, __webpack_require__(24), {
+                rehash(EXPORTS, __webpack_require__(25), {
                     parseColor: "parse",
                     formatColor: "stringify"
                 });
-                rehash(EXPORTS, __webpack_require__(34), {
+                rehash(EXPORTS, __webpack_require__(35), {
                     eachDisplacement: "each",
                     animateStyle: "style"
                 });
@@ -991,15 +1018,15 @@
         }());
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var browser = __webpack_require__(15), EXPORTS = false;
+        var browser = __webpack_require__(16), EXPORTS = false;
         if (browser) {
             EXPORTS = {
                 browser: browser,
-                event: __webpack_require__(16),
-                dom: __webpack_require__(17),
-                css: __webpack_require__(18),
-                dimension: __webpack_require__(19),
-                selection: __webpack_require__(20)
+                event: __webpack_require__(17),
+                dom: __webpack_require__(18),
+                css: __webpack_require__(19),
+                dimension: __webpack_require__(20),
+                selection: __webpack_require__(21)
             };
         }
         module.exports = EXPORTS;
@@ -1089,7 +1116,7 @@
     }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
-            var DETECTED = __webpack_require__(15), WINDOW = global.window, ieVersion = DETECTED.ieVersion;
+            var DETECTED = __webpack_require__(16), WINDOW = global.window, ieVersion = DETECTED.ieVersion;
             module.exports = {
                 screensize: typeof WINDOW.innerWidth !== "undefined",
                 pagescroll: typeof WINDOW.pageXOffset !== "undefined",
@@ -1245,7 +1272,7 @@
         }());
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var CORE = __webpack_require__(2), DETECTED = __webpack_require__(14), STRING = __webpack_require__(21), ORDER_TYPE_PREORDER = 1, ORDER_TYPE_POSTORDER = 2, ORDER_TYPE_LEVELORDER = 3, ERROR_INVALID_DOM = STRING[1101], ERROR_INVALID_DOM_NODE = STRING[1103], ERROR_INVALID_CSS_SELECTOR = STRING[1111], ERROR_INVALID_CALLBACK = STRING[1112], ERROR_INVALID_ELEMENT_CONFIG = STRING[1121], INVALID_DESCENDANT_NODE_TYPES = {
+        var CORE = __webpack_require__(2), DETECTED = __webpack_require__(15), STRING = __webpack_require__(22), ORDER_TYPE_PREORDER = 1, ORDER_TYPE_POSTORDER = 2, ORDER_TYPE_LEVELORDER = 3, ERROR_INVALID_DOM = STRING[1101], ERROR_INVALID_DOM_NODE = STRING[1103], ERROR_INVALID_CSS_SELECTOR = STRING[1111], ERROR_INVALID_CALLBACK = STRING[1112], ERROR_INVALID_ELEMENT_CONFIG = STRING[1121], INVALID_DESCENDANT_NODE_TYPES = {
             9: 1,
             11: 1
         }, STD_CONTAINS = notSupportedContains, DOM_ATTRIBUTE_RE = /(^\_|[^a-zA-Z\_])/, MANIPULATION_HELPERS = CORE.createRegistry(), EXPORTS = {
@@ -1589,7 +1616,7 @@
     }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
-            var CORE = __webpack_require__(2), STRING = __webpack_require__(21), DETECTED = __webpack_require__(14), DOM = __webpack_require__(22), COLOR = __webpack_require__(24), PADDING_BOTTOM = "paddingBottom", PADDING_TOP = "paddingTop", PADDING_LEFT = "paddingLeft", PADDING_RIGHT = "paddingRight", OFFSET_LEFT = "offsetLeft", OFFSET_TOP = "offsetTop", OFFSET_WIDTH = "offsetWidth", OFFSET_HEIGHT = "offsetHeight", CLIENT_WIDTH = "clientWidth", CLIENT_HEIGHT = "clientHeight", COLOR_RE = /[Cc]olor$/, EM_OR_PERCENT_RE = /%|em/, CSS_MEASUREMENT_RE = /^([0-9]*\.?[0-9]+|[0-9]+\.?[0-9]*)(em|px|\%|pt|vh|vw|cm|ex|in|mm|pc|vmin)$/, WIDTH_RE = /width/i, NUMBER_RE = /\d/, BOX_RE = /(top|bottom|left|right|width|height)$/, DIMENSION_RE = /([Tt]op|[Bb]ottom|[Ll]eft|[Rr]ight|[wW]idth|[hH]eight|Size|Radius)$/, IE_ALPHA_OPACITY_RE = /\(opacity\=([0-9]+)\)/i, IE_ALPHA_OPACITY_TEMPLATE = "alpha(opacity=$opacity)", IE_ALPHA_OPACITY_TEMPLATE_RE = /\$opacity/, GET_OPACITY = opacityNotSupported, SET_OPACITY = opacityNotSupported, SET_STYLE = styleManipulationNotSupported, GET_STYLE = styleManipulationNotSupported, ERROR_INVALID_DOM = STRING[1101], EXPORTS = {
+            var CORE = __webpack_require__(2), STRING = __webpack_require__(22), DETECTED = __webpack_require__(15), DOM = __webpack_require__(23), COLOR = __webpack_require__(25), PADDING_BOTTOM = "paddingBottom", PADDING_TOP = "paddingTop", PADDING_LEFT = "paddingLeft", PADDING_RIGHT = "paddingRight", OFFSET_LEFT = "offsetLeft", OFFSET_TOP = "offsetTop", OFFSET_WIDTH = "offsetWidth", OFFSET_HEIGHT = "offsetHeight", CLIENT_WIDTH = "clientWidth", CLIENT_HEIGHT = "clientHeight", COLOR_RE = /[Cc]olor$/, EM_OR_PERCENT_RE = /%|em/, CSS_MEASUREMENT_RE = /^([0-9]*\.?[0-9]+|[0-9]+\.?[0-9]*)(em|px|\%|pt|vh|vw|cm|ex|in|mm|pc|vmin)$/, WIDTH_RE = /width/i, NUMBER_RE = /\d/, BOX_RE = /(top|bottom|left|right|width|height)$/, DIMENSION_RE = /([Tt]op|[Bb]ottom|[Ll]eft|[Rr]ight|[wW]idth|[hH]eight|Size|Radius)$/, IE_ALPHA_OPACITY_RE = /\(opacity\=([0-9]+)\)/i, IE_ALPHA_OPACITY_TEMPLATE = "alpha(opacity=$opacity)", IE_ALPHA_OPACITY_TEMPLATE_RE = /\$opacity/, GET_OPACITY = opacityNotSupported, SET_OPACITY = opacityNotSupported, SET_STYLE = styleManipulationNotSupported, GET_STYLE = styleManipulationNotSupported, ERROR_INVALID_DOM = STRING[1101], EXPORTS = {
                 add: addClass,
                 remove: removeClass,
                 computedStyle: computedStyleNotSupported,
@@ -1965,12 +1992,12 @@
         }());
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var CORE = __webpack_require__(2), FORMAT = __webpack_require__(25), COLOR_RE = /^(\#?|rgba?|hsla?)(\(([^\,]+(\,[^\,]+){2,3})\)|[a-f0-9]{3}|[a-f0-9]{6})$/, NUMBER_RE = /^[0-9]*\.?[0-9]+|[0-9]+\.?[0-9]*$/, REMOVE_SPACES = /[ \r\n\t\s]+/g, TO_COLOR = {
-            rgb: __webpack_require__(26),
-            rgba: __webpack_require__(27),
-            hsl: __webpack_require__(28),
-            hsla: __webpack_require__(29),
-            hex: __webpack_require__(30)
+        var CORE = __webpack_require__(2), FORMAT = __webpack_require__(26), COLOR_RE = /^(\#?|rgba?|hsla?)(\(([^\,]+(\,[^\,]+){2,3})\)|[a-f0-9]{3}|[a-f0-9]{6})$/, NUMBER_RE = /^[0-9]*\.?[0-9]+|[0-9]+\.?[0-9]*$/, REMOVE_SPACES = /[ \r\n\t\s]+/g, TO_COLOR = {
+            rgb: __webpack_require__(27),
+            rgba: __webpack_require__(28),
+            hsl: __webpack_require__(29),
+            hsla: __webpack_require__(30),
+            hex: __webpack_require__(31)
         }, EXPORTS = {
             parse: parseColorString,
             parseType: parseType,
@@ -2079,7 +2106,7 @@
         }
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var RGBA = __webpack_require__(27), CORE = __webpack_require__(2), EXPORTS = module.exports = CORE.assign({}, RGBA);
+        var RGBA = __webpack_require__(28), CORE = __webpack_require__(2), EXPORTS = module.exports = CORE.assign({}, RGBA);
         function toString(integer) {
             return "rgb(" + RGBA.toArray(integer).slice(0, 3).join(",") + ")";
         }
@@ -2090,7 +2117,7 @@
         EXPORTS.toInteger = toInteger;
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var CORE = __webpack_require__(2), FORMAT = __webpack_require__(25), BYTE = 255, BYTE_PERCENT = 127, BYTE_HUE = 511, PERCENT = 100, HUE = 360, SATURATION = PERCENT, LUMINOSITY = PERCENT;
+        var CORE = __webpack_require__(2), FORMAT = __webpack_require__(26), BYTE = 255, BYTE_PERCENT = 127, BYTE_HUE = 511, PERCENT = 100, HUE = 360, SATURATION = PERCENT, LUMINOSITY = PERCENT;
         function hue2rgb(p, q, t) {
             t = (t + 1) % 1;
             switch (true) {
@@ -2170,7 +2197,7 @@
         };
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var HSLA = __webpack_require__(28), CORE = __webpack_require__(2), EXPORTS = module.exports = CORE.assign({}, HSLA);
+        var HSLA = __webpack_require__(29), CORE = __webpack_require__(2), EXPORTS = module.exports = CORE.assign({}, HSLA);
         function toString(integer) {
             var values = HSLA.toArray(integer).slice(0, 3);
             values[1] += "%";
@@ -2180,7 +2207,7 @@
         EXPORTS.toString = toString;
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var CORE = __webpack_require__(2), FORMAT = __webpack_require__(25), BYTE = 255, BYTE_PERCENT = 127, BYTE_HUE = 511, HUE = 360, PERCENT = 100;
+        var CORE = __webpack_require__(2), FORMAT = __webpack_require__(26), BYTE = 255, BYTE_PERCENT = 127, BYTE_HUE = 511, HUE = 360, PERCENT = 100;
         function itemize(value, index, format) {
             var F = FORMAT, M = Math, percent = PERCENT, parse = parseFloat, min = 0, max = index < 1 ? HUE : percent;
             switch (format) {
@@ -2227,7 +2254,7 @@
         };
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var RGBA = __webpack_require__(27), CORE = __webpack_require__(2), EXPORTS = module.exports = CORE.assign({}, RGBA);
+        var RGBA = __webpack_require__(28), CORE = __webpack_require__(2), EXPORTS = module.exports = CORE.assign({}, RGBA);
         function toHex(integer) {
             var M = Math;
             integer = M.max(0, M.min(integer, 255));
@@ -2244,7 +2271,7 @@
     }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
-            var CORE = __webpack_require__(2), INFO = __webpack_require__(14), STRING = __webpack_require__(21), EVENTS = null, PAGE_UNLOADED = false, MIDDLEWARE = CORE.middleware("libdom.event"), IE_CUSTOM_EVENTS = {}, ERROR_OBSERVABLE_NO_SUPPORT = STRING[1131], ERROR_INVALID_TYPE = STRING[1132], ERROR_INVALID_HANDLER = STRING[1133], IE_ON = "on", IE_BUBBLE_EVENT = "beforeupdate", IE_NO_BUBBLE_EVENT = "propertychanged", EXPORTS = module.exports = {
+            var CORE = __webpack_require__(2), INFO = __webpack_require__(15), STRING = __webpack_require__(22), EVENTS = null, PAGE_UNLOADED = false, MIDDLEWARE = CORE.middleware("libdom.event"), IE_CUSTOM_EVENTS = {}, ERROR_OBSERVABLE_NO_SUPPORT = STRING[1131], ERROR_INVALID_TYPE = STRING[1132], ERROR_INVALID_HANDLER = STRING[1133], IE_ON = "on", IE_BUBBLE_EVENT = "beforeupdate", IE_NO_BUBBLE_EVENT = "propertychanged", EXPORTS = module.exports = {
                 on: listen,
                 un: unlisten,
                 fire: dispatch,
@@ -2557,7 +2584,7 @@
     }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
-            var CORE = __webpack_require__(2), DETECTED = __webpack_require__(14), STRING = __webpack_require__(21), DOM = __webpack_require__(22), CSS = __webpack_require__(23), ERROR_INVALID_ELEMENT = STRING[1101], ERROR_INVALID_DOM = STRING[1102], OFFSET_TOP = "offsetTop", OFFSET_LEFT = "offsetLeft", OFFSET_WIDTH = "offsetWidth", OFFSET_HEIGHT = "offsetHeight", MARGIN_TOP = "marginTop", MARGIN_LEFT = "marginLeft", SCROLL_TOP = "scrollTop", SCROLL_LEFT = "scrollLeft", BOUNDING_RECT = "getBoundingClientRect", DEFAULTVIEW = null, ELEMENT_VIEW = 1, PAGE_VIEW = 2, USE_ZOOM_FACTOR = false, IE_PAGE_STAT_ACCESS = "documentElement", boundingRect = false, getPageScroll = null, getOffset = null, getSize = null, getScreenSize = null, EXPORTS = {
+            var CORE = __webpack_require__(2), DETECTED = __webpack_require__(15), STRING = __webpack_require__(22), DOM = __webpack_require__(23), CSS = __webpack_require__(24), ERROR_INVALID_ELEMENT = STRING[1101], ERROR_INVALID_DOM = STRING[1102], OFFSET_TOP = "offsetTop", OFFSET_LEFT = "offsetLeft", OFFSET_WIDTH = "offsetWidth", OFFSET_HEIGHT = "offsetHeight", MARGIN_TOP = "marginTop", MARGIN_LEFT = "marginLeft", SCROLL_TOP = "scrollTop", SCROLL_LEFT = "scrollLeft", BOUNDING_RECT = "getBoundingClientRect", DEFAULTVIEW = null, ELEMENT_VIEW = 1, PAGE_VIEW = 2, USE_ZOOM_FACTOR = false, IE_PAGE_STAT_ACCESS = "documentElement", boundingRect = false, getPageScroll = null, getOffset = null, getSize = null, getScreenSize = null, EXPORTS = {
                 offset: offset,
                 size: size,
                 box: box,
@@ -2865,7 +2892,7 @@
     }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
-            var DETECTED = __webpack_require__(14), STRING = __webpack_require__(21), DOM = __webpack_require__(22), DIMENSION = __webpack_require__(32), DETECTED_DOM = DETECTED.dom, DETECTED_SELECTION = DETECTED.selection, ERROR_DOM = STRING[1102], SELECT_ELEMENT = null, CLEAR_SELECTION = null, UNSELECTABLE = attributeUnselectable, CSS_UNSELECT = DETECTED_SELECTION.cssUnselectable, EXPORTS = {
+            var DETECTED = __webpack_require__(15), STRING = __webpack_require__(22), DOM = __webpack_require__(23), DIMENSION = __webpack_require__(33), DETECTED_DOM = DETECTED.dom, DETECTED_SELECTION = DETECTED.selection, ERROR_DOM = STRING[1102], SELECT_ELEMENT = null, CLEAR_SELECTION = null, UNSELECTABLE = attributeUnselectable, CSS_UNSELECT = DETECTED_SELECTION.cssUnselectable, EXPORTS = {
                 select: select,
                 clear: clear,
                 unselectable: unselectable
@@ -2965,7 +2992,7 @@
         }());
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var STRING = __webpack_require__(21), CORE = __webpack_require__(2), EASING = __webpack_require__(35), COLOR = __webpack_require__(24), CSS = __webpack_require__(23), DIMENSION = __webpack_require__(32), SESSION_ACCESS = "__animate_session", BOX_POSITION = {
+        var STRING = __webpack_require__(22), CORE = __webpack_require__(2), EASING = __webpack_require__(36), COLOR = __webpack_require__(25), CSS = __webpack_require__(24), DIMENSION = __webpack_require__(33), SESSION_ACCESS = "__animate_session", BOX_POSITION = {
             left: 0,
             top: 1,
             right: 2,
@@ -3302,7 +3329,7 @@
         module.exports = EXPORTS;
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var LIBCORE = __webpack_require__(2), DRIVERS = LIBCORE.createRegistry(), OPERATION = __webpack_require__(37), RESPONSE = __webpack_require__(45), DEFAULT = null, EXPORTS = {
+        var LIBCORE = __webpack_require__(2), DRIVERS = LIBCORE.createRegistry(), OPERATION = __webpack_require__(38), RESPONSE = __webpack_require__(46), DEFAULT = null, EXPORTS = {
             register: register,
             exists: exists,
             run: request,
@@ -3330,25 +3357,27 @@
         }
         function request(type, config) {
             var operation = new OPERATION(), Driver = DRIVERS.get(type), driver = new Driver();
+            var promise;
             driver.request = operation;
             driver.url = config.url;
             driver.method = config.method;
             driver.config = config;
             operation.addHeaders(config.headers);
             operation.data = config.params || config.data || config.body;
-            operation.process();
-            return Promise.resolve(operation).then(driver.setup).then(driver.transport).then(function(data) {
+            promise = Promise.resolve(operation).then(driver.setup).then(driver.transport).then(function(data) {
                 var response = new RESPONSE(operation);
                 driver.response = response;
                 response.request = driver.request;
                 response = null;
                 return data;
             }).then(driver.process).then(driver.success)["catch"](driver.error);
+            driver.api = promise;
+            return promise;
         }
         module.exports = EXPORTS;
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var LIBCORE = __webpack_require__(2), LIBDOM = __webpack_require__(12), HEADER = __webpack_require__(38), TRANSFORMER = __webpack_require__(39), CLEANING = false, CLEAN_INTERVAL = 1e3, TTL = 1e4, RUNNING = false, OPERATIONS = [];
+        var LIBCORE = __webpack_require__(2), LIBDOM = __webpack_require__(13), HEADER = __webpack_require__(39), TRANSFORMER = __webpack_require__(40), CLEANING = false, CLEAN_INTERVAL = 1e3, TTL = 1e4, RUNNING = false, OPERATIONS = [];
         function onCleanup(force) {
             var list = OPERATIONS, id = RUNNING;
             var len, operation, now, ttl;
@@ -3572,7 +3601,7 @@
         module.exports = EXPORTS;
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var LIBCORE = __webpack_require__(2), TYPES = __webpack_require__(40), TRANSFORMERS = LIBCORE.createRegistry(), REQUEST_PREFIX = "request-", RESPONSE_PREFIX = "response-", EXPORTS = {
+        var LIBCORE = __webpack_require__(2), TYPES = __webpack_require__(41), TRANSFORMERS = LIBCORE.createRegistry(), REQUEST_PREFIX = "request-", RESPONSE_PREFIX = "response-", EXPORTS = {
             register: register,
             transform: transform
         };
@@ -3617,11 +3646,11 @@
             return [ null, data ];
         }
         module.exports = EXPORTS;
-        item = __webpack_require__(41);
-        register("application/json", false, item).register("text/x-json", false, item);
         item = __webpack_require__(42);
+        register("application/json", false, item).register("text/x-json", false, item);
+        item = __webpack_require__(43);
         register("application/json", true, item).register("text/x-json", true, item);
-        register("application/x-www-form-urlencoded", false, __webpack_require__(43)).register("multipart/form-data", false, __webpack_require__(44));
+        register("application/x-www-form-urlencoded", false, __webpack_require__(44)).register("multipart/form-data", false, __webpack_require__(45));
     }, function(module, exports, __webpack_require__) {
         "use strict";
         var LIBCORE = __webpack_require__(2), MIME_TYPE_RE = /^([a-z0-9\-\_]+)\/([a-z\-\_0-9]+)(([ \s\t]*\;([^\;]+))*)$/, MIME_TYPE_PARAMS_RE = /^[ \t\s]*([a-z0-9\-\_]+)\=(\"([^\"]+)\"|[a-z0-9\-\_]+)[ \t\s]*$/, QUOTED_RE = /^\"[^\"]+\"/, EXPORTS = {
@@ -3712,7 +3741,7 @@
         }());
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var LIBCORE = __webpack_require__(2), LIBDOM = __webpack_require__(12), browser = LIBDOM.env.browser, jsonTransform = __webpack_require__(41);
+        var LIBCORE = __webpack_require__(2), LIBDOM = __webpack_require__(13), browser = LIBDOM.env.browser, jsonTransform = __webpack_require__(42);
         function eachProperty(value, name) {
             var CORE = LIBCORE, set = setOutputValue, output = this;
             var c, l;
@@ -3791,7 +3820,7 @@
         convert.fromObject = fromObject;
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var LIBDOM = __webpack_require__(12), LIBCORE = __webpack_require__(2), browser = LIBDOM.env.browser, URL_ENCODE = __webpack_require__(43), EOL = "\r\n", BOUNDARY_LENGTH = 48;
+        var LIBDOM = __webpack_require__(13), LIBCORE = __webpack_require__(2), browser = LIBDOM.env.browser, URL_ENCODE = __webpack_require__(44), EOL = "\r\n", BOUNDARY_LENGTH = 48;
         function createBoundary() {
             var ender = Math.random().toString().substr(2), output = [], len = 0, total = BOUNDARY_LENGTH - ender.length;
             for (;total--; ) {
@@ -3828,7 +3857,7 @@
         module.exports = convert;
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var LIBCORE = __webpack_require__(2), OPERATION = __webpack_require__(37), TRANSFORMER = __webpack_require__(39);
+        var LIBCORE = __webpack_require__(2), OPERATION = __webpack_require__(38), TRANSFORMER = __webpack_require__(40);
         function Response() {
             OPERATION.apply(this, arguments);
         }
@@ -3848,7 +3877,7 @@
         module.exports = Response;
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var LIBCORE = __webpack_require__(2), DRIVER = __webpack_require__(36), HEADER = __webpack_require__(38), DEFAULTS = LIBCORE.createRegistry(), METHODS = [ "get", "post", "put", "patch", "delete", "options" ], EXPORTS = {
+        var LIBCORE = __webpack_require__(2), DRIVER = __webpack_require__(37), HEADER = __webpack_require__(39), DEFAULTS = LIBCORE.createRegistry(), METHODS = [ "get", "post", "put", "patch", "delete", "options" ], EXPORTS = {
             request: request,
             defaults: accessDefaults
         };
@@ -3914,7 +3943,7 @@
     }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
-            var LIBCORE = __webpack_require__(2), BASE = __webpack_require__(48), MIDDLEWARE = LIBCORE.middleware("libdom-http.driver.xhr"), STATE_UNSENT = 0, STATE_OPENED = 1, STATE_HEADERS_RECEIVED = 2, STATE_LOADING = 3, STATE_DONE = 4, BASE_PROTOTYPE = BASE.prototype;
+            var LIBCORE = __webpack_require__(2), BASE = __webpack_require__(49), MIDDLEWARE = LIBCORE.middleware("libdom-http.driver.xhr"), STATE_UNSENT = 0, STATE_OPENED = 1, STATE_HEADERS_RECEIVED = 2, STATE_LOADING = 3, STATE_DONE = 4, BASE_PROTOTYPE = BASE.prototype;
             function applyHeader(value, name) {
                 var me = this;
                 var c, l;
@@ -3926,9 +3955,13 @@
                 }
             }
             function Xhr() {
-                BASE.apply(this, arguments);
+                var me = this, args = [ me ];
+                BASE.apply(me, arguments);
+                MIDDLEWARE.run("after:instantiated", args);
+                args = args[0] = null;
             }
             Xhr.prototype = LIBCORE.instantiate(BASE, {
+                level: 1,
                 bindMethods: BASE_PROTOTYPE.bindMethods.concat([ "onReadyStateChange" ]),
                 onReadyStateChange: function() {
                     var me = this, xhr = me.xhr, run = MIDDLEWARE.run, operation = me.request, args = [ me, xhr ];
@@ -3964,6 +3997,7 @@
                 setup: function(operation) {
                     var me = this, CORE = LIBCORE, xhr = new global.XMLHttpRequest(), args = [ me, xhr ], run = MIDDLEWARE.run;
                     var headers;
+                    BASE_PROTOTYPE.setup.apply(me, arguments);
                     me.xhr = xhr;
                     run("after:setup", args);
                     xhr.open(me.method.toUpperCase(), me.url, true);
@@ -3984,14 +4018,16 @@
                     return me.createTransportPromise(operation);
                 },
                 process: function(status) {
-                    var me = this, xhr = me.xhr, response = me.response, args = [ me, xhr ], run = MIDDLEWARE.run;
+                    var me = this, xhr = me.xhr, response = me.response, args = [ me, xhr ], run = MIDDLEWARE.run, readyState = xhr.readyState;
                     if (me.aborted) {
                         run("after:abort", args);
                     }
-                    if (xhr.readyState > STATE_LOADING) {
+                    if (readyState >= STATE_OPENED) {
                         response.status = xhr.status;
                         response.statusText = xhr.statusText;
                         response.addHeaders(xhr.getAllResponseHeaders());
+                    }
+                    if (readyState > STATE_LOADING) {
                         response.body = xhr.responseText;
                         run("after:response", args);
                     }
@@ -4000,14 +4036,25 @@
                 },
                 cleanup: function() {
                     var me = this, request = me.request, xhr = me.xhr;
+                    var args;
                     if (xhr) {
-                        me.xhr = xhr = xhr.onreadystatechange = null;
+                        args = [ me, xhr ];
+                        MIDDLEWARE.run("after:cleanup", args);
+                        me.xhr = args = args[0] = args[1] = xhr = xhr.onreadystatechange = null;
                     }
                     if (request) {
                         request.reject = null;
                         request.resolve = null;
                     }
                     delete me.xhr;
+                },
+                abort: function() {
+                    var me = this, before = me.aborted, result = BASE_PROTOTYPE.abort.apply(me, arguments), xhr = me.xhr;
+                    if (!before && me.aborted && xhr) {
+                        xhr.abort();
+                    }
+                    xhr = null;
+                    return result;
                 }
             });
             module.exports = Xhr;
@@ -4037,6 +4084,7 @@
             request: null,
             response: null,
             setup: function(operation) {
+                operation.process();
                 return operation;
             },
             transport: function(operation) {
@@ -4063,14 +4111,106 @@
             },
             abort: function() {
                 var me = this, request = me.request;
-                me.aborted = true;
-                if (request && LIBCORE.method(request.resolve)) {
-                    request.resolve(0);
+                if (!me.aborted) {
+                    me.aborted = true;
+                    if (request && LIBCORE.method(request.resolve)) {
+                        request.resolve(0);
+                    }
                 }
             },
             cleanup: function() {}
         };
         module.exports = Request;
+    }, function(module, exports, __webpack_require__) {
+        "use strict";
+        var LIBCORE = __webpack_require__(2), LIBDOM = __webpack_require__(13), DETECT = __webpack_require__(12), MIDDLEWARE = LIBCORE.middleware("libdom-http.driver.xhr"), register = MIDDLEWARE.register, BEFORE_REQUEST = "before:request", XHR = __webpack_require__(48), PROTOTYPE = XHR.prototype, BINDS = PROTOTYPE.bindMethods, BIND_LENGTH = BINDS.length, PROGRESS = DETECT.xhrbytes, features = 0;
+        function addTimeout(instance, xhr) {
+            var timeout = instance.config.timeout;
+            if (LIBCORE.number(timeout) && timeout > 10) {
+                xhr.timeout = timeout;
+            }
+        }
+        function addWithCredentials(instance, xhr) {
+            if (instance.config.withCredentials === true) {
+                xhr.withCredentials = true;
+            }
+        }
+        function onProgress(event) {
+            var instance = this, request = instance.request;
+            if (request && event.lengthComputable) {
+                request.percentLoaded = instance.api.percentLoaded = event.loaded / event.total;
+            }
+        }
+        function addProgressEvent(instance, xhr) {
+            var request = instance.request;
+            instance.api.percentLoaded = 0;
+            if (request) {
+                request.percentLoaded = 0;
+            }
+            LIBDOM.on(xhr, "progress", instance.onProgress);
+        }
+        function cleanup(instance, xhr) {
+            if (PROGRESS) {
+                LIBDOM.un(xhr, "progress", instance.onProgress);
+            }
+        }
+        if (DETECT.xhrx) {
+            features++;
+            register(BEFORE_REQUEST, addWithCredentials);
+        }
+        if (PROGRESS) {
+            features++;
+            BINDS[BIND_LENGTH++] = "onProgress";
+            PROTOTYPE.onProgress = onProgress;
+            register(BEFORE_REQUEST, addProgressEvent);
+        }
+        if (DETECT.xhrtime) {
+            register(BEFORE_REQUEST, addTimeout);
+        }
+        if (features) {
+            if (features > 2) {
+                PROTOTYPE.level = 2;
+            }
+            register("cleanup", cleanup);
+        }
+        module.exports = XHR;
+    }, function(module, exports, __webpack_require__) {
+        (function(global) {
+            "use strict";
+            var LIBCORE = __webpack_require__(2), LIBDOM = __webpack_require__(13);
+            function eachForm(data, formData) {
+                return formData;
+            }
+            function eachArray(data, formData) {
+                return formData;
+            }
+            function eachObject(data, formData) {
+                return formData;
+            }
+            function convert(data) {
+                var CORE = LIBCORE, method = null;
+                var form;
+                if (CORE.object(data)) {
+                    method = eachObject;
+                } else if (CORE.array(data)) {
+                    method = eachArray;
+                } else if (LIBDOM.is(data, 1)) {
+                    form = data.tagName.toUpperCase() === "FORM" ? data : data.form || null;
+                    if (form) {
+                        data = form;
+                        method = eachForm;
+                    }
+                }
+                form = null;
+                if (method) {
+                    return method(data, new global.FormData());
+                }
+                return null;
+            }
+            module.exports = convert;
+        }).call(exports, function() {
+            return this;
+        }());
     } ]);
 });
 

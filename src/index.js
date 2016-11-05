@@ -1,28 +1,34 @@
 'use strict';
 
 var LIBCORE = require("libcore"),
-    rehash = LIBCORE.rehash,
-    DOM = require("libdom"),
+    DETECT = require("./lib/detect.js"),
     DRIVER = require("./lib/driver.js"),
+    TRANSFORMER = require("./lib/request.js"),
     REQUEST = require("./lib/request.js"),
-    GLOB = global,
-    ENV = DOM.env,
+    rehash = LIBCORE.rehash,
+    register = TRANSFORMER.register,
     EXPORTS = REQUEST.request;
 
-// browsers
-if (ENV.browser) {
-    // register XHR
-    if (GLOB.XMLHttpRequest) {
-        DRIVER.register('xhr',
+// xhr
+if (DETECT.xhr) {
+    DRIVER.register('xhr',
                 require("./lib/driver/xhr.js"));
-    }
     
-    
-    
+    DRIVER.register('xhr2',
+                require("./lib/driver/xhr2.js"));
 }
-else if (ENV.nodejs) {
-    
+
+// transforms
+if (DETECT.formdata) {
+    // apply html5 form data here
+    register('multipart/form-data',
+        false,
+        require("./lib/transform/request-html5-form-data.js"));
 }
+
+
+
+
 
 // create api
 rehash(EXPORTS, REQUEST, {
@@ -56,4 +62,3 @@ rehash(EXPORTS, REQUEST, {
 
 module.exports = EXPORTS['default'] = EXPORTS;
 
-GLOB = null;

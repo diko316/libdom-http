@@ -47,7 +47,7 @@ function request(type, config) {
     var operation = new OPERATION(),
         Driver = DRIVERS.get(type),
         driver = new Driver();
-    
+    var promise;
     // setup
     driver.request = operation;
     driver.url = config.url;
@@ -57,10 +57,9 @@ function request(type, config) {
     operation.addHeaders(config.headers);
     
     operation.data = config.params || config.data || config.body;
-    operation.process();
     
     // workflow
-    return Promise.resolve(operation).
+    promise = Promise.resolve(operation).
             then(driver.setup).
             then(driver.transport).
             then(function (data) {
@@ -73,6 +72,10 @@ function request(type, config) {
             then(driver.process).
             then(driver.success)
             ["catch"](driver.error);
+            
+    driver.api = promise;
+    
+    return promise;
 }
 
 
