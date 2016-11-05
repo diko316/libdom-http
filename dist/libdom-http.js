@@ -23,27 +23,15 @@
     }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
-            var LIBCORE = __webpack_require__(2), rehash = LIBCORE.rehash, DOM = __webpack_require__(12), DRIVER = __webpack_require__(36), HEADER = __webpack_require__(37), TRANSFORM = __webpack_require__(38), GLOB = global, ENV = DOM.env, EXPORTS = {};
+            var LIBCORE = __webpack_require__(2), rehash = LIBCORE.rehash, DOM = __webpack_require__(12), DRIVER = __webpack_require__(36), REQUEST = __webpack_require__(46), GLOB = global, ENV = DOM.env, EXPORTS = REQUEST.request;
             if (ENV.browser) {
                 if (GLOB.XMLHttpRequest) {
-                    DRIVER.register("xhr", __webpack_require__(43));
+                    DRIVER.register("xhr", __webpack_require__(47));
                 }
             } else if (ENV.nodejs) {}
-            rehash(EXPORTS, DRIVER, {
-                request: "request",
-                register: "register",
-                use: "use"
+            rehash(EXPORTS, REQUEST, {
+                request: "request"
             });
-            rehash(EXPORTS, HEADER, {
-                parseHeader: "parse",
-                eachHeader: "each"
-            });
-            rehash(EXPORTS, TRANSFORM, {
-                parseType: "parse",
-                transformer: "register",
-                transform: "transform"
-            });
-            TRANSFORM.chain = DRIVER.chain = EXPORTS;
             module.exports = EXPORTS["default"] = EXPORTS;
             GLOB = null;
         }).call(exports, function() {
@@ -751,6 +739,9 @@
                 }
                 return this;
             },
+            exists: function(name) {
+                return OBJECT.contains(this.data, name);
+            },
             clear: function() {
                 OBJECT.clear(this.data);
                 return this;
@@ -945,6 +936,10 @@
             var css, event, dimension, selection;
             if (detect) {
                 rehash(EXPORTS, __webpack_require__(21), {
+                    xmlEncode: "xmlEncode",
+                    xmlDecode: "xmlDecode"
+                });
+                rehash(EXPORTS, __webpack_require__(22), {
                     is: "is",
                     isView: "isView",
                     contains: "contains",
@@ -965,7 +960,8 @@
                     on: "on",
                     un: "un",
                     purge: "purge",
-                    dispatch: "fire"
+                    dispatch: "fire",
+                    destructor: "ondestroy"
                 });
                 rehash(EXPORTS, dimension = __webpack_require__(32), {
                     offset: "offset",
@@ -1119,11 +1115,140 @@
             return this;
         }());
     }, function(module, exports, __webpack_require__) {
+        (function(global) {
+            "use strict";
+            var CORE = __webpack_require__(2), SEPARATE_RE = /[ \r\n\t]*[ \r\n\t]+[ \r\n\t]*/, CAMEL_RE = /[^a-z]+[a-z]/gi, STYLIZE_RE = /^([Mm]oz|[Ww]ebkit|[Mm]s|[oO])[A-Z]/, HTML_ESCAPE_CHARS_RE = /[^\u0021-\u007e]|[\u003e\u003c\&\"\']/g, TEXTAREA = global.document.createElement("textarea"), EXPORTS = {
+                camelize: camelize,
+                stylize: stylize,
+                addWord: addWord,
+                removeWord: removeWord,
+                xmlEncode: htmlescape,
+                xmlDecode: htmlunescape,
+                1001: "Invalid [name] parameter.",
+                1011: "Invalid [handler] parameter.",
+                1101: "Invalid DOM [element] parameter.",
+                1102: "Invalid [dom] Object parameter.",
+                1103: "Invalid DOM [node] parameter.",
+                1104: "Invalid DOM [document] parameter.",
+                1111: "Invalid CSS [selector] parameter.",
+                1112: "Invalid tree traverse [callback] parameter.",
+                1121: "Invalid DOM Element [config] parameter.",
+                1131: "Invalid [observable] parameter.",
+                1132: "Invalid Event [type] parameter.",
+                1133: "Invalid Event [handler] parameter.",
+                1141: "Invalid [style] Rule parameter.",
+                1151: "Invalid Animation [handler] parameter.",
+                1152: "Invalid Animation [displacements] parameter.",
+                2001: "Style Attribute manipulation is not supported",
+                2002: "Computed style is not supported by this browser.",
+                2003: "CSS Selector query form DOM is not supported.",
+                2004: "DOM position comparison is not supported.",
+                2005: "DOM selection not supported.",
+                2006: "CSS Opacity is not supported by this browser"
+            };
+            function camelize(str) {
+                return str.replace(CAMEL_RE, onCamelizeMatch);
+            }
+            function onCamelizeMatch(all) {
+                return all[all.length - 1].toUpperCase();
+            }
+            function onStylizeMatch(all, match) {
+                var found = match.toLowerCase(), len = found.length;
+                if (found === "moz") {
+                    found = "Moz";
+                }
+                return found + all.substring(len, all.length);
+            }
+            function stylize(str) {
+                return camelize(str).replace(STYLIZE_RE, onStylizeMatch);
+            }
+            function addWord(str, items) {
+                var isString = CORE.string, c = -1, l = items.length;
+                var cl, name;
+                str = str.split(SEPARATE_RE);
+                cl = str.length;
+                for (;l--; ) {
+                    name = items[++c];
+                    if (isString(name) && str.indexOf(name) === -1) {
+                        str[cl++] = name;
+                    }
+                }
+                return str.join(" ");
+            }
+            function removeWord(str, items) {
+                var c = -1, l = items.length;
+                var cl, total, name;
+                str = str.split(SEPARATE_RE);
+                total = str.length;
+                for (;l--; ) {
+                    name = items[++c];
+                    for (cl = total; cl--; ) {
+                        if (name === str[cl]) {
+                            str.splice(cl, 1);
+                            total--;
+                        }
+                    }
+                }
+                return str.join(" ");
+            }
+            function htmlunescape(str) {
+                var textarea = TEXTAREA;
+                var value = "";
+                if (textarea) {
+                    textarea.innerHTML = str;
+                    value = textarea.value;
+                }
+                textarea = null;
+                return value;
+            }
+            function htmlescape(str) {
+                return str.replace(HTML_ESCAPE_CHARS_RE, htmlescapeCallback);
+            }
+            function htmlescapeCallback(chr) {
+                var code = chr.charCodeAt(0).toString(16);
+                var value;
+                switch (code) {
+                  case "26":
+                    value = "amp";
+                    break;
+
+                  case "22":
+                    value = "quot";
+                    break;
+
+                  case "27":
+                    value = "apos";
+                    break;
+
+                  case "3C":
+                  case "3c":
+                    value = "lt";
+                    break;
+
+                  case "3E":
+                  case "3e":
+                    value = "gt";
+                    break;
+
+                  default:
+                    value = "#x" + code;
+                }
+                return "&" + value + ";";
+            }
+            function onDestroy() {
+                TEXTAREA = null;
+            }
+            CORE.register("libdom.event.global-destroy", onDestroy);
+            module.exports = EXPORTS;
+        }).call(exports, function() {
+            return this;
+        }());
+    }, function(module, exports, __webpack_require__) {
         "use strict";
-        var CORE = __webpack_require__(2), DETECTED = __webpack_require__(14), STRING = __webpack_require__(22), ORDER_TYPE_PREORDER = 1, ORDER_TYPE_POSTORDER = 2, ORDER_TYPE_LEVELORDER = 3, ERROR_INVALID_DOM = STRING[1101], ERROR_INVALID_DOM_NODE = STRING[1103], ERROR_INVALID_CSS_SELECTOR = STRING[1111], ERROR_INVALID_CALLBACK = STRING[1112], ERROR_INVALID_ELEMENT_CONFIG = STRING[1121], INVALID_DESCENDANT_NODE_TYPES = {
+        var CORE = __webpack_require__(2), DETECTED = __webpack_require__(14), STRING = __webpack_require__(21), ORDER_TYPE_PREORDER = 1, ORDER_TYPE_POSTORDER = 2, ORDER_TYPE_LEVELORDER = 3, ERROR_INVALID_DOM = STRING[1101], ERROR_INVALID_DOM_NODE = STRING[1103], ERROR_INVALID_CSS_SELECTOR = STRING[1111], ERROR_INVALID_CALLBACK = STRING[1112], ERROR_INVALID_ELEMENT_CONFIG = STRING[1121], INVALID_DESCENDANT_NODE_TYPES = {
             9: 1,
             11: 1
-        }, STD_CONTAINS = notSupportedContains, MANIPULATION_HELPERS = {}, EXPORTS = {
+        }, STD_CONTAINS = notSupportedContains, DOM_ATTRIBUTE_RE = /(^\_|[^a-zA-Z\_])/, MANIPULATION_HELPERS = CORE.createRegistry(), EXPORTS = {
             contains: contains,
             is: isDom,
             isView: isDefaultView,
@@ -1174,7 +1299,7 @@
             if (!C.method(handler)) {
                 throw new Error(STRING[1011]);
             }
-            MANIPULATION_HELPERS[":" + name] = handler;
+            MANIPULATION_HELPERS.set(name, handler);
             return EXPORTS.chain;
         }
         function add(element, config, before) {
@@ -1222,49 +1347,70 @@
             }
             return C.string(config) ? config : false;
         }
+        function applyAttributeToElement(value, name) {
+            var element = this, helper = MANIPULATION_HELPERS;
+            switch (name) {
+              case "class":
+                name = "className";
+                break;
+
+              case "for":
+                name = "htmlFor";
+                break;
+            }
+            if (helper.exists(name)) {
+                helper(name)(element, value);
+            } else if (DOM_ATTRIBUTE_RE.test(name)) {
+                element.setAttribute(name, value);
+            } else {
+                element[name] = value;
+            }
+            element = null;
+        }
         function applyConfigToElement(element, config, usedFragment) {
-            var C = CORE, hasOwn = C.contains, isObject = C.object, me = applyConfigToElement, resolveTagName = getTagNameFromConfig, helper = MANIPULATION_HELPERS;
-            var name, value, item, access, childNodes, c, l, fragment, doc, created;
+            var C = CORE, hasOwn = C.contains, isObject = C.object, me = applyConfigToElement, resolveTagName = getTagNameFromConfig, applyAttribute = applyAttributeToElement, htmlEncodeChild = false, childNodes = null;
+            var name, value, item, c, l, fragment, doc, created;
             if (isObject(config)) {
                 childNodes = null;
                 main: for (name in config) {
-                    if (hasOwn(name, config)) {
+                    if (hasOwn(config, name)) {
                         value = config[name];
                         switch (name) {
                           case "tagName":
                             continue main;
 
-                          case "class":
-                            name = "className";
-                            break;
-
-                          case "for":
-                            name = "htmlFor";
-                            break;
+                          case "text":
+                          case "childText":
+                          case "innerText":
+                            htmlEncodeChild = true;
 
                           case "childNodes":
                           case "innerHTML":
                           case "html":
                             childNodes = value;
                             continue main;
-                        }
-                        access = ":" + name;
-                        if (access in helper) {
-                            helper[name](element, value);
+
+                          case "attributes":
+                            if (isObject(value)) {
+                                C.each(value, applyAttribute, element);
+                            }
                             continue;
                         }
-                        element[name] = value;
+                        applyAttribute.call(element, value, name);
                     }
                 }
                 if (C.string(childNodes)) {
+                    if (htmlEncodeChild) {
+                        childNodes = STRING.xmlEncode(childNodes);
+                    }
                     element.innerHTML = childNodes;
-                } else {
+                } else if (!htmlEncodeChild) {
                     if (isObject(childNodes)) {
                         childNodes = [ childNodes ];
                     }
                     if (C.array(childNodes)) {
                         doc = element.ownerDocument;
-                        fragment = usedFragment === true ? doc.createDocumentFragment() : element;
+                        fragment = usedFragment === true ? element : doc.createDocumentFragment();
                         for (c = -1, l = childNodes.length; l--; ) {
                             item = childNodes[++c];
                             if (isObject(item)) {
@@ -1441,84 +1587,9 @@
         }
         module.exports = EXPORTS.chain = EXPORTS;
     }, function(module, exports, __webpack_require__) {
-        "use strict";
-        var CORE = __webpack_require__(2), SEPARATE_RE = /[ \r\n\t]*[ \r\n\t]+[ \r\n\t]*/, CAMEL_RE = /[^a-z]+[a-z]/gi, STYLIZE_RE = /^([Mm]oz|[Ww]ebkit|[Mm]s|[oO])[A-Z]/, EXPORTS = {
-            camelize: camelize,
-            stylize: stylize,
-            addWord: addWord,
-            removeWord: removeWord,
-            1001: "Invalid [name] parameter.",
-            1011: "Invalid [handler] parameter.",
-            1101: "Invalid DOM [element] parameter.",
-            1102: "Invalid [dom] Object parameter.",
-            1103: "Invalid DOM [node] parameter.",
-            1104: "Invalid DOM [document] parameter.",
-            1111: "Invalid CSS [selector] parameter.",
-            1112: "Invalid tree traverse [callback] parameter.",
-            1121: "Invalid DOM Element [config] parameter.",
-            1131: "Invalid [observable] parameter.",
-            1132: "Invalid Event [type] parameter.",
-            1133: "Invalid Event [handler] parameter.",
-            1141: "Invalid [style] Rule parameter.",
-            1151: "Invalid Animation [handler] parameter.",
-            1152: "Invalid Animation [displacements] parameter.",
-            2001: "Style Attribute manipulation is not supported",
-            2002: "Computed style is not supported by this browser.",
-            2003: "CSS Selector query form DOM is not supported.",
-            2004: "DOM position comparison is not supported.",
-            2005: "DOM selection not supported.",
-            2006: "CSS Opacity is not supported by this browser"
-        };
-        function camelize(str) {
-            return str.replace(CAMEL_RE, onCamelizeMatch);
-        }
-        function onCamelizeMatch(all) {
-            return all[all.length - 1].toUpperCase();
-        }
-        function onStylizeMatch(all, match) {
-            var found = match.toLowerCase(), len = found.length;
-            if (found === "moz") {
-                found = "Moz";
-            }
-            return found + all.substring(len, all.length);
-        }
-        function stylize(str) {
-            return camelize(str).replace(STYLIZE_RE, onStylizeMatch);
-        }
-        function addWord(str, items) {
-            var isString = CORE.string, c = -1, l = items.length;
-            var cl, name;
-            str = str.split(SEPARATE_RE);
-            cl = str.length;
-            for (;l--; ) {
-                name = items[++c];
-                if (isString(name) && str.indexOf(name) === -1) {
-                    str[cl++] = name;
-                }
-            }
-            return str.join(" ");
-        }
-        function removeWord(str, items) {
-            var c = -1, l = items.length;
-            var cl, total, name;
-            str = str.split(SEPARATE_RE);
-            total = str.length;
-            for (;l--; ) {
-                name = items[++c];
-                for (cl = total; cl--; ) {
-                    if (name === str[cl]) {
-                        str.splice(cl, 1);
-                        total--;
-                    }
-                }
-            }
-            return str.join(" ");
-        }
-        module.exports = EXPORTS;
-    }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
-            var CORE = __webpack_require__(2), STRING = __webpack_require__(22), DETECTED = __webpack_require__(14), DOM = __webpack_require__(21), COLOR = __webpack_require__(24), PADDING_BOTTOM = "paddingBottom", PADDING_TOP = "paddingTop", PADDING_LEFT = "paddingLeft", PADDING_RIGHT = "paddingRight", OFFSET_LEFT = "offsetLeft", OFFSET_TOP = "offsetTop", OFFSET_WIDTH = "offsetWidth", OFFSET_HEIGHT = "offsetHeight", CLIENT_WIDTH = "clientWidth", CLIENT_HEIGHT = "clientHeight", COLOR_RE = /[Cc]olor$/, EM_OR_PERCENT_RE = /%|em/, CSS_MEASUREMENT_RE = /^([0-9]*\.?[0-9]+|[0-9]+\.?[0-9]*)(em|px|\%|pt|vh|vw|cm|ex|in|mm|pc|vmin)$/, WIDTH_RE = /width/i, NUMBER_RE = /\d/, BOX_RE = /(top|bottom|left|right|width|height)$/, DIMENSION_RE = /([Tt]op|[Bb]ottom|[Ll]eft|[Rr]ight|[wW]idth|[hH]eight|Size|Radius)$/, IE_ALPHA_OPACITY_RE = /\(opacity\=([0-9]+)\)/i, IE_ALPHA_OPACITY_TEMPLATE = "alpha(opacity=$opacity)", IE_ALPHA_OPACITY_TEMPLATE_RE = /\$opacity/, GET_OPACITY = opacityNotSupported, SET_OPACITY = opacityNotSupported, SET_STYLE = styleManipulationNotSupported, GET_STYLE = styleManipulationNotSupported, ERROR_INVALID_DOM = STRING[1101], EXPORTS = {
+            var CORE = __webpack_require__(2), STRING = __webpack_require__(21), DETECTED = __webpack_require__(14), DOM = __webpack_require__(22), COLOR = __webpack_require__(24), PADDING_BOTTOM = "paddingBottom", PADDING_TOP = "paddingTop", PADDING_LEFT = "paddingLeft", PADDING_RIGHT = "paddingRight", OFFSET_LEFT = "offsetLeft", OFFSET_TOP = "offsetTop", OFFSET_WIDTH = "offsetWidth", OFFSET_HEIGHT = "offsetHeight", CLIENT_WIDTH = "clientWidth", CLIENT_HEIGHT = "clientHeight", COLOR_RE = /[Cc]olor$/, EM_OR_PERCENT_RE = /%|em/, CSS_MEASUREMENT_RE = /^([0-9]*\.?[0-9]+|[0-9]+\.?[0-9]*)(em|px|\%|pt|vh|vw|cm|ex|in|mm|pc|vmin)$/, WIDTH_RE = /width/i, NUMBER_RE = /\d/, BOX_RE = /(top|bottom|left|right|width|height)$/, DIMENSION_RE = /([Tt]op|[Bb]ottom|[Ll]eft|[Rr]ight|[wW]idth|[hH]eight|Size|Radius)$/, IE_ALPHA_OPACITY_RE = /\(opacity\=([0-9]+)\)/i, IE_ALPHA_OPACITY_TEMPLATE = "alpha(opacity=$opacity)", IE_ALPHA_OPACITY_TEMPLATE_RE = /\$opacity/, GET_OPACITY = opacityNotSupported, SET_OPACITY = opacityNotSupported, SET_STYLE = styleManipulationNotSupported, GET_STYLE = styleManipulationNotSupported, ERROR_INVALID_DOM = STRING[1101], EXPORTS = {
                 add: addClass,
                 remove: removeClass,
                 computedStyle: computedStyleNotSupported,
@@ -2173,11 +2244,12 @@
     }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
-            var CORE = __webpack_require__(2), INFO = __webpack_require__(14), STRING = __webpack_require__(22), EVENTS = null, PAGE_UNLOADED = false, MIDDLEWARE = CORE.middleware("libdom.event"), IE_CUSTOM_EVENTS = {}, ERROR_OBSERVABLE_NO_SUPPORT = STRING[1131], ERROR_INVALID_TYPE = STRING[1132], ERROR_INVALID_HANDLER = STRING[1133], IE_ON = "on", IE_BUBBLE_EVENT = "beforeupdate", IE_NO_BUBBLE_EVENT = "propertychanged", EXPORTS = module.exports = {
+            var CORE = __webpack_require__(2), INFO = __webpack_require__(14), STRING = __webpack_require__(21), EVENTS = null, PAGE_UNLOADED = false, MIDDLEWARE = CORE.middleware("libdom.event"), IE_CUSTOM_EVENTS = {}, ERROR_OBSERVABLE_NO_SUPPORT = STRING[1131], ERROR_INVALID_TYPE = STRING[1132], ERROR_INVALID_HANDLER = STRING[1133], IE_ON = "on", IE_BUBBLE_EVENT = "beforeupdate", IE_NO_BUBBLE_EVENT = "propertychanged", EXPORTS = module.exports = {
                 on: listen,
                 un: unlisten,
                 fire: dispatch,
-                purge: purge
+                purge: purge,
+                ondestroy: addDestructor
             };
             var RESOLVE, LISTEN, UNLISTEN, DISPATCH, EVENT_INFO, IS_CAPABLE, SUBJECT;
             function listen(observable, type, handler, context) {
@@ -2440,7 +2512,13 @@
             function onBeforeUnload() {
                 if (!PAGE_UNLOADED) {
                     PAGE_UNLOADED = true;
+                    MIDDLEWARE.run("global-destroy", []);
                     purge();
+                }
+            }
+            function addDestructor(handler) {
+                if (CORE.method(handler)) {
+                    MIDDLEWARE.register("global-destroy", handler);
                 }
             }
             RESOLVE = LISTEN = UNLISTEN = DISPATCH;
@@ -2479,7 +2557,7 @@
     }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
-            var CORE = __webpack_require__(2), DETECTED = __webpack_require__(14), STRING = __webpack_require__(22), DOM = __webpack_require__(21), CSS = __webpack_require__(23), ERROR_INVALID_ELEMENT = STRING[1101], ERROR_INVALID_DOM = STRING[1102], OFFSET_TOP = "offsetTop", OFFSET_LEFT = "offsetLeft", OFFSET_WIDTH = "offsetWidth", OFFSET_HEIGHT = "offsetHeight", MARGIN_TOP = "marginTop", MARGIN_LEFT = "marginLeft", SCROLL_TOP = "scrollTop", SCROLL_LEFT = "scrollLeft", BOUNDING_RECT = "getBoundingClientRect", DEFAULTVIEW = null, ELEMENT_VIEW = 1, PAGE_VIEW = 2, USE_ZOOM_FACTOR = false, IE_PAGE_STAT_ACCESS = "documentElement", boundingRect = false, getPageScroll = null, getOffset = null, getSize = null, getScreenSize = null, EXPORTS = {
+            var CORE = __webpack_require__(2), DETECTED = __webpack_require__(14), STRING = __webpack_require__(21), DOM = __webpack_require__(22), CSS = __webpack_require__(23), ERROR_INVALID_ELEMENT = STRING[1101], ERROR_INVALID_DOM = STRING[1102], OFFSET_TOP = "offsetTop", OFFSET_LEFT = "offsetLeft", OFFSET_WIDTH = "offsetWidth", OFFSET_HEIGHT = "offsetHeight", MARGIN_TOP = "marginTop", MARGIN_LEFT = "marginLeft", SCROLL_TOP = "scrollTop", SCROLL_LEFT = "scrollLeft", BOUNDING_RECT = "getBoundingClientRect", DEFAULTVIEW = null, ELEMENT_VIEW = 1, PAGE_VIEW = 2, USE_ZOOM_FACTOR = false, IE_PAGE_STAT_ACCESS = "documentElement", boundingRect = false, getPageScroll = null, getOffset = null, getSize = null, getScreenSize = null, EXPORTS = {
                 offset: offset,
                 size: size,
                 box: box,
@@ -2787,7 +2865,7 @@
     }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
-            var DETECTED = __webpack_require__(14), STRING = __webpack_require__(22), DOM = __webpack_require__(21), DIMENSION = __webpack_require__(32), DETECTED_DOM = DETECTED.dom, DETECTED_SELECTION = DETECTED.selection, ERROR_DOM = STRING[1102], SELECT_ELEMENT = null, CLEAR_SELECTION = null, UNSELECTABLE = attributeUnselectable, CSS_UNSELECT = DETECTED_SELECTION.cssUnselectable, EXPORTS = {
+            var DETECTED = __webpack_require__(14), STRING = __webpack_require__(21), DOM = __webpack_require__(22), DIMENSION = __webpack_require__(32), DETECTED_DOM = DETECTED.dom, DETECTED_SELECTION = DETECTED.selection, ERROR_DOM = STRING[1102], SELECT_ELEMENT = null, CLEAR_SELECTION = null, UNSELECTABLE = attributeUnselectable, CSS_UNSELECT = DETECTED_SELECTION.cssUnselectable, EXPORTS = {
                 select: select,
                 clear: clear,
                 unselectable: unselectable
@@ -2887,7 +2965,7 @@
         }());
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var STRING = __webpack_require__(22), CORE = __webpack_require__(2), EASING = __webpack_require__(35), COLOR = __webpack_require__(24), CSS = __webpack_require__(23), DIMENSION = __webpack_require__(32), SESSION_ACCESS = "__animate_session", BOX_POSITION = {
+        var STRING = __webpack_require__(21), CORE = __webpack_require__(2), EASING = __webpack_require__(35), COLOR = __webpack_require__(24), CSS = __webpack_require__(23), DIMENSION = __webpack_require__(32), SESSION_ACCESS = "__animate_session", BOX_POSITION = {
             left: 0,
             top: 1,
             right: 2,
@@ -3224,55 +3302,172 @@
         module.exports = EXPORTS;
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var LIBCORE = __webpack_require__(2), HTTP_DRIVERS = LIBCORE.createRegistry(), DEFAULT = null, EXPORTS = {
+        var LIBCORE = __webpack_require__(2), DRIVERS = LIBCORE.createRegistry(), OPERATION = __webpack_require__(37), RESPONSE = __webpack_require__(45), DEFAULT = null, EXPORTS = {
             register: register,
-            get: get,
-            request: request,
-            use: defaultDriver
+            exists: exists,
+            run: request,
+            use: use
         };
-        function register(name, api) {
-            HTTP_DRIVERS.set(name, api);
-            if (!DEFAULT) {
+        function register(name, Class) {
+            var CORE = LIBCORE;
+            if (CORE.string(name) && CORE.method(Class)) {
+                DRIVERS.set(name, Class);
+                Class.prototype.type = name;
+                if (!DEFAULT) {
+                    DEFAULT = name;
+                }
+            }
+            return EXPORTS;
+        }
+        function exists(name) {
+            return DRIVERS.exists(name);
+        }
+        function use(name) {
+            if (arguments.length > 0 && exists(name)) {
                 DEFAULT = name;
             }
-            return EXPORTS.chain;
+            return DEFAULT;
         }
-        function get(name) {
-            return HTTP_DRIVERS.get(name);
-        }
-        function request(url, config) {
-            var CORE = LIBCORE, isObject = CORE.object, getDriver = get;
-            var Driver = null;
-            if (CORE.string(url) && arguments.length === 1) {
-                config = {};
-            } else if (isObject(url)) {
-                Driver = url.driver;
-            }
-            if (!getDriver(Driver) && isObject(config)) {
-                Driver = config.driver;
-            }
-            Driver = getDriver(Driver) || getDriver(DEFAULT);
-            if (Driver) {
-                return new Driver().request(url, config);
-            }
-            return Promise.reject("Unable to find driver for http transport");
-        }
-        function defaultDriver(driver) {
-            if (HTTP_DRIVERS.get(driver)) {
-                DEFAULT = driver;
-            }
-            return EXPORTS.chain;
+        function request(type, config) {
+            var operation = new OPERATION(), Driver = DRIVERS.get(type), driver = new Driver();
+            driver.request = operation;
+            driver.url = config.url;
+            driver.method = config.method;
+            driver.config = config;
+            operation.addHeaders(config.headers);
+            operation.data = config.params || config.data || config.body;
+            operation.process();
+            return Promise.resolve(operation).then(driver.setup).then(driver.transport).then(function(data) {
+                var response = new RESPONSE(operation);
+                driver.response = response;
+                response.request = driver.request;
+                response = null;
+                return data;
+            }).then(driver.process).then(driver.success)["catch"](driver.error);
         }
         module.exports = EXPORTS;
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var LIBCORE = __webpack_require__(2), LINE_SPLIT_RE = /\r\n|\r|\n/, LINE_PAIR_RE = /^([^ \r\n\t\s\:]+)\:(.+)$/, LINE_EXTENSION_RE = /^([ \r\n\t\s]+.+|[^\:]+)$/, LINE_REQUEST_RE = /^([a-z]+)[ \t\s]+(\/[^\:]+)[ \t\s]+(HTTP\/[0-9]+\.[0-9]+)$/i, LINE_RESPONSE_RE = /^(HTTP\/[0-9]+.[0-9]+)[ \t\s]+([0-9]+)[ \t\s]+([a-z0-9\-\_]+)$/i, LINE_TRIM = /^[ \t\s]*(.+)[ \t\s]*$/, EXPORTS = {
-            each: eachHeader,
-            parse: parse
+        var LIBCORE = __webpack_require__(2), LIBDOM = __webpack_require__(12), HEADER = __webpack_require__(38), TRANSFORMER = __webpack_require__(39), CLEANING = false, CLEAN_INTERVAL = 1e3, TTL = 1e4, RUNNING = false, OPERATIONS = [];
+        function onCleanup(force) {
+            var list = OPERATIONS, id = RUNNING;
+            var len, operation, now, ttl;
+            if (!CLEANING) {
+                CLEANING = true;
+                now = new Date().getTime();
+                ttl = TTL;
+                force = force === true;
+                for (len = list.length; len--; ) {
+                    operation = list[len];
+                    if (!operation.destroyed && (force || operation.createdAt + ttl < now)) {
+                        operation.destroy();
+                    }
+                    if (operation.destroyed) {
+                        list.splice(len, 1);
+                    }
+                }
+                if (!list.length && id) {
+                    clearInterval(id);
+                    RUNNING = false;
+                }
+                CLEANING = false;
+            }
+        }
+        function cleanup(force) {
+            var id = RUNNING;
+            if (force === true) {
+                if (id) {
+                    clearInterval(id);
+                    RUNNING = false;
+                }
+                onCleanup(force);
+            } else if (!id) {
+                RUNNING = setInterval(onCleanup, CLEAN_INTERVAL);
+            }
+        }
+        function destructor() {
+            cleanup(true);
+        }
+        function Operation() {
+            var list = OPERATIONS, me = this;
+            me.destroyed = false;
+            me.using();
+            list[list.length] = me;
+            cleanup();
+        }
+        Operation.prototype = {
+            createdAt: void 0,
+            contentType: "application/octet-stream",
+            headers: null,
+            body: null,
+            data: null,
+            destroyed: true,
+            constructor: Operation,
+            using: function() {
+                this.createdAt = new Date().getTime();
+            },
+            addHeaders: function(headers) {
+                var me = this, CORE = LIBCORE;
+                var current, contentType;
+                headers = HEADER.parse(headers);
+                if (headers) {
+                    current = me.headers;
+                    if (CORE.object(current)) {
+                        CORE.assign(current, headers);
+                    } else {
+                        me.headers = headers;
+                    }
+                    contentType = me.header("content-type");
+                    if (contentType) {
+                        me.contentType = contentType;
+                    } else {
+                        delete me.contenType;
+                    }
+                }
+                me.using();
+                return this;
+            },
+            header: function(name) {
+                var me = this, current = me.headers, CORE = LIBCORE;
+                me.using();
+                if (CORE.string(name) && CORE.object(current)) {
+                    name = HEADER.headerName(name);
+                    if (CORE.contains(current, name)) {
+                        return current[name];
+                    }
+                }
+                return null;
+            },
+            process: function() {
+                var me = this, result = TRANSFORMER.transform(me.header("content-type"), false, me.data), headers = result[0];
+                me.using();
+                if (headers) {
+                    me.addHeaders(headers);
+                }
+                me.body = result[1];
+            },
+            destroy: function() {
+                LIBCORE.clear(this);
+            }
         };
+        LIBDOM.destructor(destructor);
+        module.exports = Operation;
+    }, function(module, exports, __webpack_require__) {
+        "use strict";
+        var LIBCORE = __webpack_require__(2), LINE_SPLIT_RE = /\r\n|\r|\n/, LINE_PAIR_RE = /^([^ \r\n\t\s\:]+)\:(.+)$/, LINE_EXTENSION_RE = /^([ \r\n\t\s]+.+|[^\:]+)$/, LINE_REQUEST_RE = /^([a-z]+)[ \t\s]+(\/[^\:]+)[ \t\s]+(HTTP\/[0-9]+\.[0-9]+)$/i, LINE_RESPONSE_RE = /^(HTTP\/[0-9]+.[0-9]+)[ \t\s]+([0-9]+)[ \t\s]+([a-z0-9\-\_]+)$/i, LINE_TRIM = /^[ \t\s]*(.+)[ \t\s]*$/, MULTI_VALUE_RE = /Set\-cookie/i, EXPORTS = {
+            each: eachHeader,
+            parse: parse,
+            headerName: normalizeHeaderName
+        };
+        function normalizeHeaderName(name) {
+            if (!name) {
+                return "";
+            }
+            return name.charAt(0).toUpperCase() + name.substring(1, name.length).toLowerCase();
+        }
         function parseHeaderString(str, callback, scope) {
-            var lines = str.split(LINE_SPLIT_RE), pairRe = LINE_PAIR_RE, extensionRe = LINE_EXTENSION_RE, requestRe = LINE_REQUEST_RE, responseRe = LINE_RESPONSE_RE, trimRe = LINE_TRIM, separator = ":", trimReplace = "$1", contains = LIBCORE.contains, l = lines.length, c = -1, headers = {}, names = [], nl = 0, name = null;
-            var line, index, value, values, len;
+            var lines = str.split(LINE_SPLIT_RE), pairRe = LINE_PAIR_RE, extensionRe = LINE_EXTENSION_RE, requestRe = LINE_REQUEST_RE, responseRe = LINE_RESPONSE_RE, trimRe = LINE_TRIM, multivalueRe = MULTI_VALUE_RE, separator = ":", trimReplace = "$1", contains = LIBCORE.contains, normalize = normalizeHeaderName, l = lines.length, c = -1, headers = {}, names = [], nl = 0, name = null;
+            var line, index, value, values, exist;
             if (typeof scope === "undefined") {
                 scope = null;
             }
@@ -3280,7 +3475,7 @@
                 line = lines[++c];
                 if (!c && requestRe.test(line) || responseRe.test(line)) {
                     names[nl++] = "";
-                    values[values.length] = line;
+                    headers[""] = line;
                     continue;
                 }
                 if (pairRe.test(line)) {
@@ -3290,19 +3485,28 @@
                     if (!value) {
                         continue;
                     }
-                    if (!contains(headers, name)) {
-                        headers[name] = [];
+                    name = normalize(name);
+                    exist = contains(headers, name);
+                    if (!exist) {
                         names[nl++] = name;
                     }
-                    values = headers[name];
-                    values[values.length] = value;
-                } else if (name && extensionRe.test(line)) {
-                    if (!contains(headers, name)) {
-                        headers[name] = [];
+                    if (multivalueRe.test(name)) {
+                        if (!exist) {
+                            headers[name] = [];
+                        }
+                        values = headers[name];
+                        values[values.length] = value;
+                    } else {
+                        headers[name] = value;
                     }
-                    values = headers[name];
-                    len = values.length;
-                    values[!len ? len : len - 1] = (len ? " " : "") + line.replace(trimRe, trimReplace);
+                } else if (name && extensionRe.test(line)) {
+                    value = line.replace(trimRe, trimReplace);
+                    if (multivalueRe.test(name)) {
+                        values = headers[name];
+                        values[values.length - 1] += " " + value;
+                    } else {
+                        headers[name] += " " + value;
+                    }
                 }
             }
             for (c = -1, l = names.length; l--; ) {
@@ -3311,8 +3515,8 @@
             }
         }
         function eachHeader(input, callback, scope, current) {
-            var CORE = LIBCORE, isString = CORE.string, isNumber = CORE.number, isArray = CORE.array, contains = CORE.contains, clean = cleanArrayValues;
-            var name, value;
+            var CORE = LIBCORE, isString = CORE.string, isNumber = CORE.number, isArray = CORE.array, contains = CORE.contains, clean = cleanArrayValues, multivalueRe = MULTI_VALUE_RE, normalize = normalizeHeaderName;
+            var name, value, len;
             if (CORE.array(input)) {
                 input = clean(input.slice(0)).join("\r\n");
             }
@@ -3325,11 +3529,15 @@
                 for (name in input) {
                     if (contains(input, name)) {
                         value = input[name];
+                        name = normalize(name);
                         if (isString(value) || isNumber(value)) {
-                            value = [ value ];
-                            callback.call(scope, name, value);
+                            callback.call(scope, name, multivalueRe.test(name) ? [ value ] : value);
                         } else if (isArray(value)) {
                             value = clean(value.slice(0));
+                            if (!multivalueRe.test(name)) {
+                                len = value.length;
+                                value = len ? value[len - 1] : "";
+                            }
                             if (value.length) {
                                 callback.call(scope, name, value);
                             }
@@ -3346,14 +3554,16 @@
             return eachHeader(headers, parseCallback, values) && values;
         }
         function parseCallback(name, values) {
-            this[name.charAt(0).toUpperCase() + name.substring(1, name.length).toLowerCase()] = values;
+            this[name] = values;
         }
         function cleanArrayValues(array) {
             var CORE = LIBCORE, isString = CORE.string, isNumber = CORE.number, l = array.length;
             var value;
             for (;l--; ) {
                 value = array[l];
-                if (!isString(value) && !isNumber(value)) {
+                if (isNumber(value)) {
+                    array[l] = value.toString(10);
+                } else if (!isString(value)) {
                     array.splice(l, 1);
                 }
             }
@@ -3362,12 +3572,61 @@
         module.exports = EXPORTS;
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var LIBCORE = __webpack_require__(2), TRANSFORMERS = LIBCORE.createRegistry(), MIME_TYPE_RE = /^([a-z0-9\-\_]+)\/([a-z\-\_0-9]+)(([ \s\t]*\;([^\;]+))*)$/, MIME_TYPE_PARAMS_RE = /^[ \t\s]*([a-z0-9\-\_]+)\=(\"([^\"]+)\"|[a-z0-9\-\_]+)[ \t\s]*$/, QUOTED_RE = /^\"[^\"]+\"/, EXPORTS = {
+        var LIBCORE = __webpack_require__(2), TYPES = __webpack_require__(40), TRANSFORMERS = LIBCORE.createRegistry(), REQUEST_PREFIX = "request-", RESPONSE_PREFIX = "response-", EXPORTS = {
             register: register,
-            transform: transform,
-            parse: parseType
+            transform: transform
         };
         var item;
+        function register(type, response, handler) {
+            var CORE = LIBCORE, transformers = TRANSFORMERS, responsePrefix = RESPONSE_PREFIX;
+            var finalType, current, all;
+            if (CORE.method(handler)) {
+                type = TYPES.parse(type);
+                if (type) {
+                    all = response === "all";
+                    response = response === true ? REQUEST_PREFIX : responsePrefix;
+                    finalType = response + type.root;
+                    current = response + type.string;
+                    if (current !== finalType && !transformers.exists(finalType)) {
+                        transformers.set(finalType, handler);
+                    }
+                    transformers.set(current, handler);
+                    if (all) {
+                        transformers.set(responsePrefix + type.string, handler);
+                    }
+                }
+            }
+            return EXPORTS;
+        }
+        function transform(type, response, data) {
+            var transformers = TRANSFORMERS;
+            var finalType;
+            type = TYPES.parse(type);
+            if (type) {
+                response = response === true ? REQUEST_PREFIX : RESPONSE_PREFIX;
+                finalType = response + type.string;
+                if (transformers.exists(finalType)) {
+                    return transformers.get(finalType)(data);
+                }
+                finalType = response + type.root;
+                if (transformers.exists(finalType)) {
+                    data = transformers.get(finalType)(data);
+                    return LIBCORE.array(data) ? data : [ null, null ];
+                }
+            }
+            return [ null, data ];
+        }
+        module.exports = EXPORTS;
+        item = __webpack_require__(41);
+        register("application/json", false, item).register("text/x-json", false, item);
+        item = __webpack_require__(42);
+        register("application/json", true, item).register("text/x-json", true, item);
+        register("application/x-www-form-urlencoded", false, __webpack_require__(43)).register("multipart/form-data", false, __webpack_require__(44));
+    }, function(module, exports, __webpack_require__) {
+        "use strict";
+        var LIBCORE = __webpack_require__(2), MIME_TYPE_RE = /^([a-z0-9\-\_]+)\/([a-z\-\_0-9]+)(([ \s\t]*\;([^\;]+))*)$/, MIME_TYPE_PARAMS_RE = /^[ \t\s]*([a-z0-9\-\_]+)\=(\"([^\"]+)\"|[a-z0-9\-\_]+)[ \t\s]*$/, QUOTED_RE = /^\"[^\"]+\"/, EXPORTS = {
+            parse: parseType
+        };
         function parseType(type) {
             var mtypeRe = MIME_TYPE_RE, paramRe = MIME_TYPE_PARAMS_RE, quotedRe = QUOTED_RE, CORE = LIBCORE, paramGlue = "; ", parameterObject = null;
             var match, subtype, parameters, name, value, l, defaultType;
@@ -3394,7 +3653,7 @@
                 defaultType = type + "/" + subtype;
                 return {
                     string: defaultType + (parameters ? paramGlue + parameters : ""),
-                    defaultType: defaultType,
+                    root: defaultType,
                     type: type,
                     subtype: subtype,
                     params: parameterObject
@@ -3402,60 +3661,11 @@
             }
             return void 0;
         }
-        function register(type, transformFunction) {
-            var CORE = LIBCORE, registry = TRANSFORMERS;
-            var defaultType;
-            type = CORE.method(transformFunction) && parseType(type);
-            if (type) {
-                defaultType = type.defaultType;
-                if (!registry.get(defaultType)) {
-                    registry.set(defaultType, transformFunction);
-                }
-                registry.set(defaultType, transformFunction);
-            }
-            return EXPORTS.chain;
-        }
-        function transform(type, data) {
-            var registry = TRANSFORMERS, undef = void 0;
-            var transformer, params;
-            type = parseType(type);
-            if (type) {
-                transformer = registry.get(type.string);
-                params = type.params;
-                if (!transformer) {
-                    if (!params) {
-                        return undef;
-                    }
-                    transformer = registry.get(type.defaultType);
-                    params = null;
-                }
-                return transformer(data, params);
-            }
-            return undef;
-        }
-        module.exports = EXPORTS.chain = EXPORTS;
-        item = __webpack_require__(39);
-        register("text/http-header", item).register("text/http-header-request", item);
-        item = __webpack_require__(40);
-        register("application/octet-stream", item).register("application/octet-stream-request", item);
-        item = __webpack_require__(41);
-        register("application/json-request", item).register("text/json-request", item);
-        item = __webpack_require__(42);
-        register("application/json", item).register("text/json", item);
-    }, function(module, exports, __webpack_require__) {
-        "use strict";
-        var HEADER = __webpack_require__(37);
-        module.exports = HEADER.parse;
-    }, function(module, exports) {
-        "use strict";
-        function convert(data) {
-            return data;
-        }
-        module.exports = convert;
+        module.exports = EXPORTS;
     }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
-            var LIBCORE = __webpack_require__(2), EMPTY = "", json = global.JSON;
+            var LIBCORE = __webpack_require__(2), json = global.JSON;
             if (!json) {
                 json = false;
             }
@@ -3463,14 +3673,14 @@
                 if (!json) {
                     throw new Error("JSON is not supported in this platform");
                 } else if (!LIBCORE.object(data)) {
-                    return EMPTY;
+                    return [ null, "" ];
                 }
                 try {
                     data = json.stringify(data);
                 } catch (e) {
-                    return EMPTY;
+                    return [ null, "" ];
                 }
-                return data;
+                return [ null, data ];
             }
             module.exports = convert;
         }).call(exports, function() {
@@ -3487,119 +3697,317 @@
                 if (!json) {
                     throw new Error("JSON is not supported in this platform");
                 } else if (!LIBCORE.string(data)) {
-                    return void 0;
+                    return null;
                 }
                 try {
                     data = json.parse(data);
                 } catch (e) {
-                    return void 0;
+                    return null;
                 }
-                return data;
+                return [ null, data ];
             }
             module.exports = convert;
         }).call(exports, function() {
             return this;
         }());
     }, function(module, exports, __webpack_require__) {
+        "use strict";
+        var LIBCORE = __webpack_require__(2), LIBDOM = __webpack_require__(12), browser = LIBDOM.env.browser, jsonTransform = __webpack_require__(41);
+        function eachProperty(value, name) {
+            var CORE = LIBCORE, set = setOutputValue, output = this;
+            var c, l;
+            if (CORE.array(value)) {
+                for (c = -1, l = value.length; l--; ) {
+                    set(output, name, value[++c]);
+                }
+            } else {
+                set(output, name, value);
+            }
+        }
+        function setOutputValue(output, name, value) {
+            var CORE = LIBCORE, isString = CORE.string;
+            value = CORE.number(value) ? value.toString(10) : isString(value) ? value : jsonTransform(value);
+            output[output.length] = name + "=" + (isString(value) ? encodeURIComponent(value) : "");
+        }
+        function applyFieldValue(name, input, output) {
+            var value = input.value, set = setOutputValue;
+            var options, option, c, l;
+            switch (input.type) {
+              case "select":
+                options = input.options;
+                for (c = -1, l = options.length; l--; ) {
+                    option = options[++c];
+                    if (option.selected) {
+                        set(output, name, option.value);
+                    }
+                }
+                break;
+
+              case "radio":
+              case "checkbox":
+                if (input.checked) {
+                    set(output, name, value);
+                }
+                break;
+
+              default:
+                set(output, name, value);
+            }
+            options = option = null;
+            return output;
+        }
+        function getFieldPairs(form) {
+            var isString = LIBCORE.string, elements = form.elements, c = -1, l = elements.length, apply = applyFieldValue, output = [];
+            var node, name;
+            for (;l--; ) {
+                node = elements[++c];
+                name = node.name;
+                if (isString(name)) {
+                    apply(name, node, output);
+                }
+            }
+            elements = node = null;
+            return output;
+        }
+        function fromObject(data) {
+            var output = [];
+            LIBCORE.each(data, eachProperty, output);
+            return output;
+        }
+        function convert(data) {
+            var CORE = LIBCORE;
+            if (browser && LIBDOM.is(data, 1) && data.tagName.toUpperCase() === "FORM") {
+                data = getFieldPairs(data).join("&");
+            }
+            if (CORE.object(data)) {
+                return [ null, fromObject(data).join("&") ];
+            } else if (CORE.string(data)) {
+                return [ null, data ];
+            }
+            return null;
+        }
+        module.exports = convert;
+        convert.fromForm = getFieldPairs;
+        convert.fromObject = fromObject;
+    }, function(module, exports, __webpack_require__) {
+        "use strict";
+        var LIBDOM = __webpack_require__(12), LIBCORE = __webpack_require__(2), browser = LIBDOM.env.browser, URL_ENCODE = __webpack_require__(43), EOL = "\r\n", BOUNDARY_LENGTH = 48;
+        function createBoundary() {
+            var ender = Math.random().toString().substr(2), output = [], len = 0, total = BOUNDARY_LENGTH - ender.length;
+            for (;total--; ) {
+                output[len++] = "-";
+            }
+            output[len++] = ender;
+            return output.join("");
+        }
+        function encodePairs(output) {
+            var boundary = createBoundary(), eol = EOL, headers = [ "Content-Type: multipart/form-data; charset=utf-8;", "    boundary=" + boundary ], c = -1, l = output.length, len = 0, body = [];
+            var contentHeader, name, value, index;
+            for (;l--; ) {
+                value = output[++c];
+                index = value.indexOf("=");
+                name = value.substring(0, index);
+                value = value.substring(index + 1, value.length);
+                contentHeader = [ 'Content-Disposition: form-data; name="' + name + '"', "Content-type: application/octet-stream", eol ];
+                body[len++] = contentHeader.join(eol) + value;
+            }
+            return [ headers.join(eol), body.join(eol + boundary + eol) ];
+        }
+        function convert(data) {
+            var CORE = LIBCORE, urlencode = URL_ENCODE;
+            if (browser && LIBDOM.is(data, 1) && data.tagName.toUpperCase() === "FORM") {
+                return encodePairs(urlencode.fromForm(data));
+            }
+            if (CORE.object(data)) {
+                return encodePairs(urlencode.fromObject(data));
+            } else if (CORE.string(data)) {
+                return [ null, data ];
+            }
+            return null;
+        }
+        module.exports = convert;
+    }, function(module, exports, __webpack_require__) {
+        "use strict";
+        var LIBCORE = __webpack_require__(2), OPERATION = __webpack_require__(37), TRANSFORMER = __webpack_require__(39);
+        function Response() {
+            OPERATION.apply(this, arguments);
+        }
+        Response.prototype = LIBCORE.instantiate(OPERATION, {
+            constructor: Response,
+            status: 0,
+            statusText: "Uninitialized",
+            process: function() {
+                var me = this, result = TRANSFORMER.transform(me.header("content-type"), true, me.body), headers = result[0];
+                me.using();
+                if (headers) {
+                    me.addHeaders(headers);
+                }
+                me.data = result[1];
+            }
+        });
+        module.exports = Response;
+    }, function(module, exports, __webpack_require__) {
+        "use strict";
+        var LIBCORE = __webpack_require__(2), DRIVER = __webpack_require__(36), HEADER = __webpack_require__(38), DEFAULTS = LIBCORE.createRegistry(), METHODS = [ "get", "post", "put", "patch", "delete", "options" ], EXPORTS = {
+            request: request,
+            defaults: accessDefaults
+        };
+        function normalizeMethod(method) {
+            if (LIBCORE.string(method)) {
+                method = method.toLowerCase();
+                if (METHODS.indexOf(method) !== -1) {
+                    return method;
+                }
+            }
+            return DEFAULTS.get("method");
+        }
+        function sniffDriver(config) {
+            var driver = config.driver, mgr = DRIVER;
+            LIBCORE.run("libdom-http.driver.resolve", [ config, driver ]);
+            driver = config.driver;
+            if (mgr.exists(driver)) {
+                return driver;
+            }
+            return mgr.use();
+        }
+        function request(url, config) {
+            var CORE = LIBCORE, isString = CORE.string, isObject = CORE.object, Header = HEADER;
+            var headers, item, defaults;
+            if (isObject(url)) {
+                config = url;
+                url = config.url;
+            }
+            if (isString(url)) {
+                defaults = DEFAULTS.clone();
+                if (isObject(config)) {
+                    config = CORE.assign({}, config, defaults);
+                } else {
+                    config = CORE.assign({}, defaults);
+                }
+                config.url = url;
+                config.method = normalizeMethod(config.method);
+                headers = Header.parse(defaults.headers) || {};
+                item = Header.parse(config.headers);
+                if (item) {
+                    CORE.assign(headers, item);
+                }
+                config.headers = item;
+                return DRIVER.run(sniffDriver(config), config);
+            }
+            return Promise.reject("Invalid http request");
+        }
+        function accessDefaults(name, value) {
+            var defaults = DEFAULTS;
+            if (arguments.length > 1) {
+                defaults.set(name, value);
+                return EXPORTS.chain;
+            }
+            return defaults.get(name);
+        }
+        module.exports = EXPORTS;
+        DRIVER.use("xhr");
+        DEFAULTS.set("method", "get");
+        DEFAULTS.set("headers", {
+            accept: "application/json,text/x-json,text/plain,*/*;q=0.8",
+            "conten-type": "application/json"
+        });
+    }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
-            var LIBCORE = __webpack_require__(2), BASE = __webpack_require__(44), STATE_UNSENT = 0, STATE_OPENED = 1, STATE_HEADERS_RECEIVED = 2, STATE_LOADING = 3, STATE_DONE = 4, HTTP_REQUEST = BASE.request, BASE_HTTP_REQUEST = HTTP_REQUEST.prototype;
-            function Xhr() {
-                HTTP_REQUEST.apply(this, arguments);
+            var LIBCORE = __webpack_require__(2), BASE = __webpack_require__(48), MIDDLEWARE = LIBCORE.middleware("libdom-http.driver.xhr"), STATE_UNSENT = 0, STATE_OPENED = 1, STATE_HEADERS_RECEIVED = 2, STATE_LOADING = 3, STATE_DONE = 4, BASE_PROTOTYPE = BASE.prototype;
+            function applyHeader(value, name) {
+                var me = this;
+                var c, l;
+                if (!LIBCORE.array(value)) {
+                    value = [ value ];
+                }
+                for (c = -1, l = value.length; l--; ) {
+                    me.setRequestHeader(name, value[++c]);
+                }
             }
-            Xhr.prototype = LIBCORE.instantiate(HTTP_REQUEST, {
-                constructor: Xhr,
-                driver: void 0,
-                bindNames: BASE_HTTP_REQUEST.bindNames.concat([ "onReadyStateChange" ]),
+            function Xhr() {
+                BASE.apply(this, arguments);
+            }
+            Xhr.prototype = LIBCORE.instantiate(BASE, {
+                bindMethods: BASE_PROTOTYPE.bindMethods.concat([ "onReadyStateChange" ]),
                 onReadyStateChange: function() {
-                    var me = this, driver = me.driver, operation = me.operation;
+                    var me = this, xhr = me.xhr, run = MIDDLEWARE.run, operation = me.request, args = [ me, xhr ];
                     var status;
-                    if (driver) {
-                        switch (driver.readyState) {
+                    if (!me.aborted) {
+                        run("before:readystatechange", args);
+                        switch (xhr.readyState) {
                           case STATE_UNSENT:
-                            break;
-
                           case STATE_OPENED:
-                            break;
-
                           case STATE_HEADERS_RECEIVED:
-                            break;
-
                           case STATE_LOADING:
                             break;
 
                           case STATE_DONE:
-                            status = driver.status;
+                            status = xhr.status;
                             if (status < 200 || status > 299) {
                                 operation.reject(status);
                             } else {
                                 operation.resolve(status);
                             }
                         }
-                    } else if (operation) {
-                        operation.reject(0);
+                        run("after:statechange", args);
                     }
-                    operation = driver = null;
+                    me = xhr = operation = args = args[0] = args[1] = null;
                 },
-                eachSetHeader: function(value, name) {
-                    var driver = this.driver, l = value.length, c = 0;
-                    for (;l--; c++) {
-                        driver.setRequestHeader(name, value[c]);
-                    }
-                },
-                createTransportPromise: function() {
-                    var me = this;
-                    function callback(resolve, reject) {
-                        var operation = me.operation;
+                createTransportPromise: function(operation) {
+                    function bind(resolve, reject) {
                         operation.resolve = resolve;
                         operation.reject = reject;
-                        operation = null;
                     }
-                    return new Promise(callback);
+                    return new Promise(bind);
                 },
-                prepare: function(operation) {
-                    var CORE = LIBCORE, me = this, config = operation.config, driver = new global.XMLHttpRequest(), withCredentials = config.withCredentials, headers = me.headers;
-                    me.driver = driver;
-                    driver.open(me.method.toUpperCase(), me.url, true);
+                setup: function(operation) {
+                    var me = this, CORE = LIBCORE, xhr = new global.XMLHttpRequest(), args = [ me, xhr ], run = MIDDLEWARE.run;
+                    var headers;
+                    me.xhr = xhr;
+                    run("after:setup", args);
+                    xhr.open(me.method.toUpperCase(), me.url, true);
+                    xhr.onreadystatechange = me.onReadyStateChange;
+                    run("before:request", args);
+                    headers = operation.headers;
                     if (CORE.object(headers)) {
-                        CORE.each(headers, me.eachSetHeader, me);
+                        CORE.each(headers, applyHeader, xhr);
                     }
-                    if (typeof withCredentials === "boolean") {
-                        driver.withCredentials = withCredentials;
-                    }
-                    driver.timeout = me.timeout;
-                    driver.onreadystatechange = me.onReadyStateChange;
-                    driver = null;
+                    xhr = args = args[0] = args[1] = null;
                     return operation;
                 },
-                transport: function() {
-                    var me = this;
-                    me.driver.send(me.body || null);
-                    return me.createTransportPromise();
+                transport: function(operation) {
+                    var me = this, xhr = me.xhr, args = [ me, xhr ];
+                    MIDDLEWARE.run("after:request", args);
+                    xhr.send(null);
+                    xhr = args = args[0] = args[1] = null;
+                    return me.createTransportPromise(operation);
                 },
-                process: function(operation, response) {
-                    var driver = this.driver;
-                    var responseText;
-                    if (driver.readyState > STATE_HEADERS_RECEIVED) {
-                        response.status = driver.status;
-                        response.statusText = driver.statusText;
-                        responseText = driver.responseText;
-                        response.body = responseText;
-                        response.processHeaders(driver.getAllResponseHeaders());
-                        response.processBody(responseText);
+                process: function(status) {
+                    var me = this, xhr = me.xhr, response = me.response, args = [ me, xhr ], run = MIDDLEWARE.run;
+                    if (me.aborted) {
+                        run("after:abort", args);
                     }
-                    response.process();
-                    driver = null;
-                    return operation;
+                    if (xhr.readyState > STATE_LOADING) {
+                        response.status = xhr.status;
+                        response.statusText = xhr.statusText;
+                        response.addHeaders(xhr.getAllResponseHeaders());
+                        response.body = xhr.responseText;
+                        run("after:response", args);
+                    }
+                    xhr = args = args[0] = args[1] = null;
+                    return status;
                 },
                 cleanup: function() {
-                    var me = this, driver = me.driver;
-                    if (driver) {
-                        me.driver = driver = driver.onreadystatechange = null;
+                    var me = this, request = me.request, xhr = me.xhr;
+                    if (xhr) {
+                        me.xhr = xhr = xhr.onreadystatechange = null;
                     }
-                    delete me.driver;
-                    BASE_HTTP_REQUEST.cleanup.apply(me, arguments);
-                    return me;
+                    if (request) {
+                        request.reject = null;
+                        request.resolve = null;
+                    }
+                    delete me.xhr;
                 }
             });
             module.exports = Xhr;
@@ -3608,185 +4016,61 @@
         }());
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var LIBCORE = __webpack_require__(2), TRANSFORM = __webpack_require__(38), METHODS = [ "head", "options", "trace", "get", "post", "put", "delete" ], HEADER_TRANSFORM_TYPE = "text/http-header", DEFAULTS = LIBCORE.createRegistry(), instantiate = LIBCORE.instantiate;
+        var LIBCORE = __webpack_require__(2);
         function bind(instance, method) {
             function bound() {
                 return method.apply(instance, arguments);
             }
             return bound;
         }
-        function HttpBase() {}
-        function HttpRequest() {
-            var me = this, names = me.bindNames, l = names.length, binder = bind;
+        function Request() {
+            var me = this, list = this.bindMethods, len = list.length, bindMethod = bind;
             var name;
-            for (;l--; ) {
-                name = names[l];
-                me[name] = binder(me, me[name]);
+            for (;len--; ) {
+                name = list[len];
+                me[name] = bindMethod(me, me[name]);
             }
         }
-        function HttpResponse(request) {
-            var me = this;
-            request.response = me;
-            me.request = request;
-        }
-        HttpBase.prototype = {
+        Request.prototype = {
+            bindMethods: [ "setup", "transport", "process", "success", "error" ],
             aborted: false,
-            headers: null,
-            body: null,
-            data: null,
-            typeSuffix: "",
-            bodyOutput: "body",
-            contentType: "application/octet-stream",
-            constructor: HttpBase,
-            header: function(name, index) {
-                var CORE = LIBCORE, headers = this.headers;
-                var found;
-                if (CORE.object(headers) && CORE.string(name)) {
-                    name = name.charAt(0).toUpperCase() + name.substring(1, name.length).toLowerCase();
-                    if (CORE.contains(headers, name)) {
-                        found = headers[name];
-                        if (!CORE.number(index)) {
-                            return found;
-                        }
-                        return index in found ? found[index] : found[found.length - 1];
-                    }
-                }
-                return void 0;
-            },
-            processHeaders: function(headers) {
-                var me = this, transform = TRANSFORM.transform, transformType = HEADER_TRANSFORM_TYPE, defaults = transform(transformType, me.headers);
-                var contentType;
-                me.headers = defaults;
-                headers = transform(transformType, headers);
-                if (headers) {
-                    me.headers = defaults ? LIBCORE.assign(defaults, headers) : headers;
-                }
-                contentType = me.header("Content-type", 0);
-                if (LIBCORE.string(contentType)) {
-                    me.contentType = contentType;
-                }
-                return me;
-            },
-            processBody: function(body) {
-                var me = this;
-                if (!me.typeSuffix) {
-                    console.log("transform: ", body, " to ", me.header("Content-type", 0) || "application/octet-stream");
-                }
-                me[me.bodyOutput] = TRANSFORM.transform(me.contentType + me.typeSuffix, body);
-                return me;
-            }
-        };
-        HttpRequest.prototype = instantiate(HttpBase, {
-            type: "base",
-            responder: HttpResponse,
+            request: null,
             response: null,
-            requesting: false,
-            url: null,
-            method: "get",
-            typeSuffix: "-request",
-            timeout: 10 * 1e3,
-            bindNames: [ "prepare", "transport", "success", "error" ],
-            constructor: HttpRequest,
-            request: function(url, config) {
-                var CORE = LIBCORE, isObject = CORE.object, me = this, methodList = METHODS, assign = CORE.assign;
-                var item, defaults;
-                if (isObject(url)) {
-                    config = url;
-                    url = config.url;
-                }
-                if (CORE.string(url) && isObject(config)) {
-                    defaults = DEFAULTS.clone();
-                    config = assign(assign({}, defaults), config);
-                    me.url = url;
-                    item = config.timeout;
-                    if (CORE.number(item) && item > 100) {
-                        me.timeout = item;
-                    }
-                    item = config.method;
-                    if (methodList.indexOf(item) !== -1) {
-                        me.method = item;
-                    }
-                    me.headers = defaults.headers;
-                    me.processHeaders(config.headers);
-                    me.data = config.data || config.params || config.body || null;
-                    me.processBody(me.data);
-                    me.requesting = true;
-                    return Promise.resolve(me.operation = {
-                        config: config,
-                        resolve: null,
-                        reject: null
-                    }).then(me.prepare).then(me.transport).then(me.success)["catch"](me.error);
-                }
-                return Promise.reject("Invalid request configuration");
-            },
-            prepare: function(operation) {
+            setup: function(operation) {
                 return operation;
             },
-            transport: function() {
-                return Promise.reject("No transport() implementation.");
+            transport: function(operation) {
+                return Promise.reject("No tranport() implementation.");
             },
-            process: function(operation) {},
+            process: function(status) {
+                return status;
+            },
             success: function(status) {
-                var me = this;
-                var response = new me.responder(me);
-                delete me.requesting;
-                if (status !== 0) {
-                    me.process(me.operation, response, status);
+                var response = this.response;
+                if (response) {
                     response.process();
                 }
-                response.aborted = me.aborted;
-                me.cleanup();
+                this.cleanup(status);
                 return response;
             },
-            error: function(error) {
-                var me = this, aborted = me.aborted;
-                if (aborted) {
-                    return me.success(0);
+            error: function(status) {
+                var response = this.response;
+                if (response) {
+                    response.process();
                 }
-                delete me.requesting;
-                me.cleanup();
-                return Promise.reject(error);
+                this.cleanup(status);
+                return Promise.reject(status);
             },
             abort: function() {
-                var me = this, operation = me.operation;
-                if (me.requesting && !me.aborted) {
-                    me.aborted = true;
-                    if (LIBCORE.method(operation.reject)) {
-                        operation.reject(0);
-                    }
-                    operation = null;
+                var me = this, request = me.request;
+                me.aborted = true;
+                if (request && LIBCORE.method(request.resolve)) {
+                    request.resolve(0);
                 }
-                return me;
             },
-            cleanup: function() {
-                var me = this, operation = me.operation;
-                if (operation) {
-                    operation = operation.config = operation.resolve = operation.reject = null;
-                }
-                return me;
-            }
-        });
-        HttpResponse.prototype = instantiate(HttpBase, {
-            constructor: HttpResponse,
-            request: void 0,
-            contentType: null,
-            status: 0,
-            statusText: "Uninitialized",
-            bodyOutput: "data",
-            process: function() {},
-            to: function(format) {
-                return TRANSFORM.transform(format, this.body);
-            }
-        });
-        module.exports = {
-            defaults: DEFAULTS,
-            request: HttpRequest,
-            response: HttpResponse
+            cleanup: function() {}
         };
-        DEFAULTS.set("headers", {
-            accept: "application/json, text/plain, */*;q=0.8",
-            "content-type": "application/json"
-        });
+        module.exports = Request;
     } ]);
 });
 

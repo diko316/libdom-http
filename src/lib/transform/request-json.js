@@ -13,17 +13,17 @@ function convert(data) {
     if (!json) {
         throw new Error("JSON is not supported in this platform");
     }
-    else if (!LIBCORE.string(data)) {
-        return void(0);
+    else if (!LIBCORE.object(data)) {
+        return [null, ''];
     }
     
     try {
-        data = json.parse(data);
+        data = json.stringify(data);
     }
     catch (e) {
-        return void(0);
+        return [null, ''];
     }
-    return data;
+    return [null, data];
 }
 
 

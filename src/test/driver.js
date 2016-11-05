@@ -11,3 +11,15 @@ main.request("data.json").
     }, function (error) {
         console.log("failed! ", error);
     });
+
+
+
+var dom = require("libdom");
+
+dom.add(global.document.body, {
+    tagName: 'form',
+    childNodes: [{
+        innerHTML: 'Buang'
+    }]
+    
+});

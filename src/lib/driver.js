@@ -1,60 +1,82 @@
 'use strict';
 
 var LIBCORE = require("libcore"),
-    HTTP_DRIVERS = LIBCORE.createRegistry(),
+    DRIVERS = LIBCORE.createRegistry(),
+    OPERATION = require("./operation.js"),
+    RESPONSE = require("./response.js"),
     DEFAULT = null,
     EXPORTS = {
         register: register,
-        get: get,
-        request: request,
-        use: defaultDriver
+        exists: exists,
+        run: request,
+        use: use
     };
-
-function register(name, api) {
-  
-    HTTP_DRIVERS.set(name, api);
     
-    if (!DEFAULT) {
+/**
+ * driver management
+ */
+function register(name, Class) {
+    var CORE = LIBCORE;
+        
+    if (CORE.string(name) && CORE.method(Class)) {
+        DRIVERS.set(name, Class);
+        Class.prototype.type = name;
+        
+        if (!DEFAULT) {
+            DEFAULT = name;
+        }
+    }
+    return EXPORTS;
+}
+
+function exists(name) {
+    return DRIVERS.exists(name);
+}
+
+function use(name) {
+    if (arguments.length > 0 && exists(name)) {
         DEFAULT = name;
     }
-    return EXPORTS.chain;
+    return DEFAULT;
 }
 
-function get(name) {
-    return HTTP_DRIVERS.get(name);
+/**
+ * driver process
+ */
+function request(type, config) {
+    var operation = new OPERATION(),
+        Driver = DRIVERS.get(type),
+        driver = new Driver();
+    
+    // setup
+    driver.request = operation;
+    driver.url = config.url;
+    driver.method = config.method;
+    driver.config = config;
+    
+    operation.addHeaders(config.headers);
+    
+    operation.data = config.params || config.data || config.body;
+    operation.process();
+    
+    // workflow
+    return Promise.resolve(operation).
+            then(driver.setup).
+            then(driver.transport).
+            then(function (data) {
+                var response = new RESPONSE(operation);
+                driver.response = response;
+                response.request = driver.request;
+                response = null;
+                return data;
+            }).
+            then(driver.process).
+            then(driver.success)
+            ["catch"](driver.error);
 }
 
-function request(url, config) {
-    var CORE = LIBCORE,
-        isObject = CORE.object,
-        getDriver = get;
-    var Driver = null;
-    
-    // sniff driver
-    if (CORE.string(url) && arguments.length === 1) {
-        config = {};
-    }
-    else if (isObject(url)) {
-        Driver = url.driver;
-    }
-    
-    if (!getDriver(Driver) && isObject(config)) {
-        Driver =  config.driver;
-    }
-    
-    Driver = getDriver(Driver) || getDriver(DEFAULT);
-    
-    if (Driver) {
-        return (new Driver()).request(url, config);
-    }
-    return Promise.reject("Unable to find driver for http transport");
-}
 
-function defaultDriver(driver) {
-    if (HTTP_DRIVERS.get(driver)) {
-        DEFAULT = driver;
-    }
-    return EXPORTS.chain;
-}
+
+
 
 module.exports = EXPORTS;

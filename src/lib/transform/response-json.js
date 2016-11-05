@@ -1,7 +1,6 @@
 'use strict';
 
 var LIBCORE = require("libcore"),
-    EMPTY = '',
     json = global.JSON;
 
 if (!json) {
@@ -14,17 +13,17 @@ function convert(data) {
     if (!json) {
         throw new Error("JSON is not supported in this platform");
     }
-    else if (!LIBCORE.object(data)) {
-        return EMPTY;
+    else if (!LIBCORE.string(data)) {
+        return null;
     }
     
     try {
-        data = json.stringify(data);
+        data = json.parse(data);
     }
     catch (e) {
-        return EMPTY;
+        return null;
     }
-    return data;
+    return [null, data];
 }
 
 

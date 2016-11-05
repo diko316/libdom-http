@@ -9,11 +9,25 @@ var LIBCORE = require("libcore"),
     LINE_RESPONSE_RE =
         /^(HTTP\/[0-9]+.[0-9]+)[ \t\s]+([0-9]+)[ \t\s]+([a-z0-9\-\_]+)$/i,
     LINE_TRIM = /^[ \t\s]*(.+)[ \t\s]*$/,
+    MULTI_VALUE_RE = /Set\-cookie/i,
     EXPORTS = {
         each: eachHeader,
-        parse: parse
+        parse: parse,
+        headerName: normalizeHeaderName
     };
+
+function normalizeHeaderName(name) {
+    if (!name) {
+        return '';
+    }
     
+    return name.charAt(0).toUpperCase() +
+                name.
+                    substring(1, name.length).
+                    toLowerCase();
+    
+}
+
 function parseHeaderString(str, callback, scope) {
     var lines = str.split(LINE_SPLIT_RE),
         pairRe = LINE_PAIR_RE,
@@ -21,16 +35,18 @@ function parseHeaderString(str, callback, scope) {
         requestRe = LINE_REQUEST_RE,
         responseRe = LINE_RESPONSE_RE,
         trimRe = LINE_TRIM,
+        multivalueRe = MULTI_VALUE_RE,
         separator = ':',
         trimReplace = "$1",
         contains = LIBCORE.contains,
+        normalize = normalizeHeaderName,
         l = lines.length,
         c = -1,
         headers = {},
         names = [],
         nl = 0,
         name = null;
-    var line, index, value, values, len;
+    var line, index, value, values, exist;
     
     if (typeof scope === 'undefined') {
         scope = null;
@@ -44,7 +60,7 @@ function parseHeaderString(str, callback, scope) {
         if (!c &&
             requestRe.test(line) || responseRe.test(line)) {
             names[nl++] = "";
-            values[values.length] = line;
+            headers[""] = line;
             continue;
             
         }
@@ -61,23 +77,39 @@ function parseHeaderString(str, callback, scope) {
                 continue;
             }
             
-            if (!contains(headers, name)) {
-                headers[name] = [];
+            // normalize
+            name = normalize(name);
+            
+            
+            exist = contains(headers, name);
+            if (!exist) {
                 names[nl++] = name;
             }
-            values = headers[name];
-            values[values.length] = value;
-        }
-        else if (name && extensionRe.test(line)) {
-            if (!contains(headers, name)) {
-                headers[name] = [];
-            }
-            values = headers[name];
-            len = values.length;
             
-            values[!len ?
-                    len : len -1] = (len ? ' ' : '') + line.replace(trimRe,
-                                                                trimReplace);
+            if (multivalueRe.test(name)) {
+                if (!exist) {
+                    headers[name] = [];
+                }
+                values = headers[name];
+                values[values.length] = value;
+            }
+            else {
+                headers[name] = value;
+            }
+            
+        }
+        // continuation
+        else if (name && extensionRe.test(line)) {
+            value = line.replace(trimRe, trimReplace);
+            
+            if (multivalueRe.test(name)) {
+                values = headers[name];
+                values[values.length - 1] += ' ' + value;
+            }
+            else {
+                headers[name] += ' ' + value;
+            }
+            
         }
     }
     
@@ -94,8 +126,10 @@ function eachHeader(input, callback, scope, current) {
         isNumber = CORE.number,
         isArray = CORE.array,
         contains = CORE.contains,
-        clean = cleanArrayValues;
-    var name, value;
+        clean = cleanArrayValues,
+        multivalueRe = MULTI_VALUE_RE,
+        normalize = normalizeHeaderName;
+    var name, value, len;
     
     // join as string
     if (CORE.array(input)) {
@@ -114,13 +148,22 @@ function eachHeader(input, callback, scope, current) {
         for (name in input) {
             if (contains(input, name)) {
                 value = input[name];
+                name = normalize(name);
                 
                 if (isString(value) || isNumber(value)) {
-                    value = [value];
-                    callback.call(scope, name, value);
+                    callback.call(scope, name,
+                                            multivalueRe.test(name) ?
+                                                [value] : value);
                 }
                 else if (isArray(value)) {
+                    
                     value = clean(value.slice(0));
+                    
+                    if (!multivalueRe.test(name)) {
+                        len = value.length;
+                        value = len ? value[len - 1] : '';
+                    }
+                    
                     if (value.length) {
                         callback.call(scope, name, value);
                     }
@@ -145,10 +188,7 @@ function parse(headers) {
 function parseCallback(name, values) {
     
     /* jshint validthis:true */
-    this[name.charAt(0).toUpperCase() +
-            name.
-                substring(1, name.length).
-                toLowerCase()] = values;
+    this[name] = values;
 }
 
 function cleanArrayValues(array) {
@@ -160,7 +200,10 @@ function cleanArrayValues(array) {
     
     for (; l--;) {
         value = array[l];
-        if (!isString(value) && !isNumber(value)) {
+        if (isNumber(value)) {
+            array[l] = value.toString(10);
+        }
+        else if (!isString(value)) {
             array.splice(l, 1);
         }
     }
