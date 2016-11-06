@@ -22,7 +22,7 @@
         module.exports = __webpack_require__(1);
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var LIBCORE = __webpack_require__(2), DETECT = __webpack_require__(12), DRIVER = __webpack_require__(37), TRANSFORMER = __webpack_require__(47), REQUEST = __webpack_require__(47), rehash = LIBCORE.rehash, register = TRANSFORMER.register, EXPORTS = REQUEST.request;
+        var LIBCORE = __webpack_require__(2), DETECT = __webpack_require__(12), DRIVER = __webpack_require__(37), TRANSFORMER = __webpack_require__(40), REQUEST = __webpack_require__(47), rehash = LIBCORE.rehash, register = TRANSFORMER.register, EXPORTS = REQUEST.request;
         if (DETECT.xhr) {
             DRIVER.register("xhr", __webpack_require__(48));
             DRIVER.register("xhr2", __webpack_require__(50));
@@ -3877,7 +3877,7 @@
         module.exports = Response;
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var LIBCORE = __webpack_require__(2), DRIVER = __webpack_require__(37), HEADER = __webpack_require__(39), DEFAULTS = LIBCORE.createRegistry(), METHODS = [ "get", "post", "put", "patch", "delete", "options" ], EXPORTS = {
+        var LIBCORE = __webpack_require__(2), LIBDOM = __webpack_require__(13), DRIVER = __webpack_require__(37), HEADER = __webpack_require__(39), DEFAULTS = LIBCORE.createRegistry(), METHODS = [ "get", "post", "put", "patch", "delete", "options" ], EXPORTS = {
             request: request,
             defaults: accessDefaults
         };
@@ -3899,8 +3899,14 @@
             }
             return mgr.use();
         }
+        function applyFormConfig(form, config) {
+            if (!LIBCORE.object(config)) {
+                config = {};
+            }
+            return config;
+        }
         function request(url, config) {
-            var CORE = LIBCORE, isString = CORE.string, isObject = CORE.object, Header = HEADER;
+            var CORE = LIBCORE, isString = CORE.string, isObject = CORE.object, Header = HEADER, runRequest = false;
             var headers, item, defaults;
             if (isObject(url)) {
                 config = url;
@@ -3921,6 +3927,9 @@
                     CORE.assign(headers, item);
                 }
                 config.headers = item;
+                runRequest = true;
+            }
+            if (runRequest) {
                 return DRIVER.run(sniffDriver(config), config);
             }
             return Promise.reject("Invalid http request");
@@ -4177,15 +4186,89 @@
     }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
-            var LIBCORE = __webpack_require__(2), LIBDOM = __webpack_require__(13);
-            function eachForm(data, formData) {
-                return formData;
-            }
+            var LIBCORE = __webpack_require__(2), LIBDOM = __webpack_require__(13), REQUEST_JSON = __webpack_require__(42);
             function eachArray(data, formData) {
+                var c = -1, l = data.length;
+                for (;l--; ) {
+                    add(data[++c], formData);
+                }
                 return formData;
             }
             function eachObject(data, formData) {
+                var contains = LIBCORE.contains;
+                var name;
+                for (name in data) {
+                    if (contains(data, name)) {
+                        add(data[name], formData, name);
+                    }
+                }
                 return formData;
+            }
+            function file(data) {
+                return data instanceof global.File;
+            }
+            function add(value, formData, name) {
+                var CORE = LIBCORE, isString = CORE.string, isFile = file, finite = isFinite, jsonify = REQUEST_JSON, hasName = isString(name), multiple = CORE.array(value);
+                var c, l, list, filename;
+                if (LIBDOM.is(value, 1)) {
+                    if (!hasName && !isString(name = value.name)) {
+                        value = null;
+                        return;
+                    }
+                    switch (value.type) {
+                      case "file":
+                        value = value.files;
+                        multiple = true;
+                        break;
+
+                      case "select":
+                        list = value.options;
+                        for (c = -1, l = list.length; l--; ) {
+                            value = list[++c];
+                            if (value.selected) {
+                                formData.append(name, value || "");
+                            }
+                        }
+                        list = value = null;
+                        return;
+
+                      case "checkbox":
+                      case "radio":
+                        if (!value.checked) {
+                            value = null;
+                            return;
+                        }
+
+                      default:
+                        value = value.value;
+                    }
+                }
+                if (hasName) {
+                    list = !multiple ? [ value ] : value;
+                    for (c = -1, l = list.length; l--; ) {
+                        value = list[++c];
+                        if (isFile(value)) {
+                            filename = value.name;
+                            if (isString(filename)) {
+                                formData.append(name, value, filename);
+                            } else {
+                                formData.append(name, value);
+                            }
+                            continue;
+                        }
+                        if (typeof value === "number") {
+                            value = finite(value) ? value.toString(10) : "";
+                        } else if (typeof value !== "string") {
+                            value = jsonify(value);
+                            value = value && value[1];
+                            if (!isString(value) || value === "null") {
+                                value = "";
+                            }
+                        }
+                        formData.append(name, value);
+                    }
+                }
+                list = value = null;
             }
             function convert(data) {
                 var CORE = LIBCORE, method = null;
@@ -4195,15 +4278,17 @@
                 } else if (CORE.array(data)) {
                     method = eachArray;
                 } else if (LIBDOM.is(data, 1)) {
-                    form = data.tagName.toUpperCase() === "FORM" ? data : data.form || null;
-                    if (form) {
-                        data = form;
-                        method = eachForm;
+                    if (data.tagName.toUpperCase() === "FORM") {
+                        method = eachArray;
+                        data = data.elements;
+                    } else if (data.form) {
+                        method = eachArray;
+                        data = [ data ];
                     }
                 }
                 form = null;
                 if (method) {
-                    return method(data, new global.FormData());
+                    return [ null, method(data, new global.FormData()) ];
                 }
                 return null;
             }

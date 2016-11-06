@@ -1,6 +1,7 @@
 'use strict';
 
 var LIBCORE = require("libcore"),
+    LIBDOM = require("libdom"),
     DRIVER = require("./driver.js"),
     HEADER = require("./header.js"),
     DEFAULTS = LIBCORE.createRegistry(),
@@ -38,11 +39,19 @@ function sniffDriver(config) {
     
 }
 
+function applyFormConfig(form, config) {
+    if (!LIBCORE.object(config)) {
+        config = {};
+    }
+    return config;
+}
+
 function request(url, config) {
     var CORE = LIBCORE,
         isString = CORE.string,
         isObject = CORE.object,
-        Header = HEADER;
+        Header = HEADER,
+        runRequest = false;
     var headers, item, defaults;
     
     // break it down
@@ -77,11 +86,12 @@ function request(url, config) {
             CORE.assign(headers, item);
         }
         config.headers = item;
-        
+        runRequest = true;
+    }
+    
+    if (runRequest) {
         return DRIVER.run(sniffDriver(config),
                         config);
-        
-        
     }
     
     return Promise.reject("Invalid http request");

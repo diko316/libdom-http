@@ -3,7 +3,7 @@
 var LIBCORE = require("libcore"),
     DETECT = require("./lib/detect.js"),
     DRIVER = require("./lib/driver.js"),
-    TRANSFORMER = require("./lib/request.js"),
+    TRANSFORMER = require("./lib/transform.js"),
     REQUEST = require("./lib/request.js"),
     rehash = LIBCORE.rehash,
     register = TRANSFORMER.register,
@@ -20,7 +20,7 @@ if (DETECT.xhr) {
 
 // transforms
 if (DETECT.formdata) {
-    // apply html5 form data here
+    // use html5 form data request
     register('multipart/form-data',
         false,
         require("./lib/transform/request-html5-form-data.js"));
