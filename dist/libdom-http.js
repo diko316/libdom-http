@@ -3999,7 +3999,7 @@
         module.exports = Response;
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var LIBCORE = __webpack_require__(2), LIBDOM = __webpack_require__(13), DRIVER = __webpack_require__(37), HEADER = __webpack_require__(39), DEFAULTS = LIBCORE.createRegistry(), METHODS = [ "get", "post", "put", "patch", "delete", "options" ], EXPORTS = {
+        var LIBCORE = __webpack_require__(2), LIBDOM = __webpack_require__(13), DRIVER = __webpack_require__(37), HEADER = __webpack_require__(39), OPERATION = __webpack_require__(38), DEFAULTS = LIBCORE.createRegistry(), METHODS = [ "get", "post", "put", "patch", "delete", "options" ], EXPORTS = {
             request: request,
             defaults: accessDefaults
         };
@@ -4021,40 +4021,62 @@
             }
             return mgr.use();
         }
-        function applyFormConfig(form, config) {
-            if (!LIBCORE.object(config)) {
-                config = {};
+        function applyRequestForm(form, requestObject) {
+            var CORE = LIBCORE, isString = CORE.string;
+            var item;
+            item = form.enctype || form.encoding;
+            if (isString(item)) {
+                requestObject.addHeaders("Content-type: " + item);
             }
-            return config;
+            item = form.action;
+            if (isString(item)) {
+                requestObject.url = item;
+            }
+            item = form.method;
+            if (isString(item)) {
+                requestObject.method = item;
+            }
+            requestObject.data = form;
         }
+        function applyRequestConfig(config, requestObject) {
+            var CORE = LIBCORE, isString = CORE.string, data = config.form || config.data || config.params || config.body;
+            var item;
+            if (isForm(data)) {
+                applyRequestForm(data, requestObject);
+            } else if (data !== null || data !== void 0) {
+                requestObject.data = data;
+            }
+            item = config.url;
+            if (isString(item)) {
+                requestObject.url = item;
+            }
+            item = config.method;
+            if (isString(item)) {
+                requestObject.method = item;
+            }
+            item = config.url;
+            if (isString(item)) {
+                requestObject.url = item;
+            }
+            requestObject.addHeaders(config.headers);
+        }
+        function isForm(object) {
+            return LIBDOM.is(object, 1) && object.tagName.toUpperCase() === "FORM";
+        }
+        function isValidRequest(reqeustObject) {}
         function request(url, config) {
-            var CORE = LIBCORE, isString = CORE.string, isObject = CORE.object, Header = HEADER, runRequest = false;
-            var headers, item, defaults;
-            if (isObject(url)) {
-                config = url;
-                url = config.url;
-            }
+            var CORE = LIBCORE, isString = CORE.string, isObject = CORE.object, applyConfig = applyRequestConfig, requestObject = new OPERATION();
+            applyConfig(DEFAULTS.clone(), requestObject);
             if (isString(url)) {
-                defaults = DEFAULTS.clone();
+                requestObject.url = url;
                 if (isObject(config)) {
-                    config = CORE.assign({}, config, defaults);
-                } else {
-                    config = CORE.assign({}, defaults);
+                    applyConfig(config, requestObject);
                 }
-                config.url = url;
-                config.method = normalizeMethod(config.method);
-                headers = Header.parse(defaults.headers) || {};
-                item = Header.parse(config.headers);
-                if (item) {
-                    CORE.assign(headers, item);
-                }
-                config.headers = item;
-                runRequest = true;
+            } else if (isObject(url)) {
+                applyConfig(url, requestObject);
+            } else if (isForm(url)) {
+                applyRequestForm(url, requestObject);
             }
-            if (runRequest) {
-                return DRIVER.run(sniffDriver(config), config);
-            }
-            return Promise.reject("Invalid http request");
         }
         function accessDefaults(name, value) {
             var defaults = DEFAULTS;

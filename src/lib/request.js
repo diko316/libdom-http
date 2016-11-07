@@ -4,6 +4,7 @@ var LIBCORE = require("libcore"),
     LIBDOM = require("libdom"),
     DRIVER = require("./driver.js"),
     HEADER = require("./header.js"),
+    OPERATION = require("./operation.js"),
     DEFAULTS = LIBCORE.createRegistry(),
     METHODS = ['get','post','put','patch','delete','options'],
     EXPORTS = {
@@ -39,63 +40,149 @@ function sniffDriver(config) {
     
 }
 
-function applyFormConfig(form, config) {
-    if (!LIBCORE.object(config)) {
-        config = {};
+function applyRequestForm(form, requestObject) {
+    var CORE = LIBCORE,
+        isString = CORE.string;
+    var item;
+    
+    // use this as request header
+    item = form.enctype || form.encoding;
+    if (isString(item)) {
+        requestObject.addHeaders('Content-type: ' + item);
     }
-    return config;
+    
+    item = form.action;
+    if (isString(item)) {
+        requestObject.url = item;
+    }
+    
+    item = form.method;
+    if (isString(item)) {
+        requestObject.method = item;
+    }
+    
+    requestObject.data = form;
+    
 }
+
+function applyRequestConfig(config, requestObject) {
+    var CORE = LIBCORE,
+        isString = CORE.string,
+        data = config.form || config.data || config.params || config.body;
+    var item;
+    
+    // apply defaults
+    if (isForm(data)) {
+        applyRequestForm(data, requestObject);
+    }
+    else if (data !== null || data !== void(0)) {
+        requestObject.data = data;
+    }
+    
+    item = config.url;
+    if (isString(item)) {
+        requestObject.url = item;
+    }
+    
+    item = config.method;
+    if (isString(item)) {
+        requestObject.method = item;
+    }
+    
+    item = config.url;
+    if (isString(item)) {
+        requestObject.url = item;
+    }
+    
+    // add headers
+    requestObject.addHeaders(config.headers);
+}
+
+function isForm(object) {
+    return LIBDOM.is(object, 1) && object.tagName.toUpperCase() === 'FORM';
+}
+
+function isValidRequest(reqeustObject) {
+    
+}
+
 
 function request(url, config) {
     var CORE = LIBCORE,
         isString = CORE.string,
         isObject = CORE.object,
-        Header = HEADER,
-        runRequest = false;
-    var headers, item, defaults;
+        applyConfig = applyRequestConfig,
+        requestObject = new OPERATION();
+        
+    // apply defaults
+    applyConfig(DEFAULTS.clone(), requestObject);
     
-    // break it down
-    if (isObject(url)) {
-        config = url;
-        url = config.url;
-    }
-    
-    // yes it can run
+    // process config
     if (isString(url)) {
-        
-        defaults = DEFAULTS.clone();
-        
-        // populate config
+        requestObject.url = url;
         if (isObject(config)) {
-            config = CORE.assign({}, config, defaults);
+            applyConfig(config, requestObject);
         }
-        else {
-            config = CORE.assign({}, defaults);
-        }
-        
-        // finalize url
-        config.url = url;
-        
-        // finalize method
-        config.method = normalizeMethod(config.method);
-        
-        // finalize headers before deciding what driver to use
-        headers = Header.parse(defaults.headers) || {};
-        item = Header.parse(config.headers);
-        if (item) {
-            CORE.assign(headers, item);
-        }
-        config.headers = item;
-        runRequest = true;
+    }
+    else if (isObject(url)) {
+        applyConfig(url, requestObject);
+    }
+    else if (isForm(url)) {
+        applyRequestForm(url, requestObject);
     }
     
-    if (runRequest) {
-        return DRIVER.run(sniffDriver(config),
-                        config);
-    }
-    
-    return Promise.reject("Invalid http request");
 }
+
+//function request(url, config) {
+//    var CORE = LIBCORE,
+//        isString = CORE.string,
+//        isObject = CORE.object,
+//        Header = HEADER,
+//        runRequest = false;
+//    var headers, item, defaults;
+//    
+//    // break it down
+//    if (isObject(url)) {
+//        config = url;
+//        url = config.url;
+//    }
+//    
+//    // yes it can run
+//    if (isString(url)) {
+//        
+//        defaults = DEFAULTS.clone();
+//        
+//        // populate config
+//        if (isObject(config)) {
+//            config = CORE.assign({}, config, defaults);
+//        }
+//        else {
+//            config = CORE.assign({}, defaults);
+//        }
+//        
+//        // finalize url
+//        config.url = url;
+//        
+//        // finalize method
+//        config.method = normalizeMethod(config.method);
+//        
+//        // finalize headers before deciding what driver to use
+//        headers = Header.parse(defaults.headers) || {};
+//        item = Header.parse(config.headers);
+//        if (item) {
+//            CORE.assign(headers, item);
+//        }
+//        config.headers = item;
+//        runRequest = true;
+//    }
+//    
+//    if (runRequest) {
+//        return DRIVER.run(sniffDriver(config),
+//                        config);
+//    }
+//    
+//    return Promise.reject("Invalid http request");
+//}
 
 function accessDefaults(name, value) {
     var defaults = DEFAULTS;
