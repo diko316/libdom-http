@@ -1,7 +1,8 @@
 'use strict';
 
 var LIBCORE = require("libcore"),
-    OPERATION = require("./operation.js"),
+    REQUEST = require("./operation.js"),
+    OPERATION = REQUEST.Operation,
     TRANSFORMER = require("./transform.js");
     
     

@@ -16,43 +16,43 @@ main.request("data.json").
 
 var dom = require("libdom");
 
-var form = dom.add(global.document.body, {
-            tagName: 'form',
-            childNodes: [{
-                childNodes: [{
-                    tagName: 'label',
-                    text: 'text'
-                },
-                {
-                    tagName: 'input',
-                    name: 'text-input',
-                    type: 'text'
-                }]
-            },
-            {
-                childNodes: [{
-                    tagName: 'label',
-                    text: 'file'
-                },
-                {
-                    tagName: 'input',
-                    name: 'file-upload',
-                    type: 'file'
-                }]
-            },
-            {
-                childNodes: [{
-                    tagName: 'button',
-                    type: 'submit',
-                    text: 'submit'
-                }]
-            }]
-            
-        });
-
-
-dom.on(form, 'submit',
-    function (event, element) {
+dom.add(global.document.body, {
+    tag: 'form',
+    onsubmit: function (event, form) {
         event.preventDefault();
-        console.log('submitting ', element);
-    });
+        // test submit form
+        
+    },
+    childNodes: [{
+        childNodes: [{
+            tag: 'label',
+            text: 'text'
+        },
+        {
+            tag: 'input',
+            name: 'text-input',
+            type: 'text'
+        }]
+    },
+    {
+        childNodes: [{
+            tag: 'label',
+            text: 'file'
+        },
+        {
+            tag: 'input',
+            name: 'file-upload',
+            type: 'file'
+        }]
+    },
+    {
+        childNodes: [{
+            tag: 'button',
+            type: 'submit',
+            text: 'submit'
+        }]
+    }]
+    
+});
+
+

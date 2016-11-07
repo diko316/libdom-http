@@ -63,6 +63,10 @@ function destructor() {
     cleanup(true);
 }
 
+function Request() {
+    Operation.apply(this, arguments);
+}
+
 function Operation() {
     var list = OPERATIONS,
         me = this;
@@ -159,6 +163,15 @@ Operation.prototype = {
     }
 };
 
+
+Request.prototype = LIBCORE.instantiate(Operation, {
+    url: null,
+    method: 'get',
+    constructor: Request
+});
+
+Request.Operation = Operation;
+
 LIBDOM.destructor(destructor);
 
-module.exports = Operation;
+module.exports = Request;
