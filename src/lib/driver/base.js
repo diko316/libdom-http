@@ -1,7 +1,5 @@
 'use strict';
 
-var LIBCORE = require("libcore");
-
 function bind(instance, method) {
     function bound() {
         return method.apply(instance, arguments);
@@ -9,7 +7,7 @@ function bind(instance, method) {
     return bound;
 }
 
-function Request() {
+function Driver() {
     var me = this,
         list = this.bindMethods,
         len = list.length,
@@ -21,7 +19,7 @@ function Request() {
     }
 }
 
-Request.prototype = {
+Driver.prototype = {
     bindMethods: [
         'setup',
         'transport',
@@ -33,60 +31,110 @@ Request.prototype = {
     request: null,
     response: null,
     
-    setup: function (operation) {
-        operation.process();
-        return operation;
-    },
+    constructor: Driver,
+    
     /* jshint unused:false */
-    transport: function (operation) {
-        return Promise.reject("No tranport() implementation.");
+    onSetup: function (request) {
+        
     },
     
-    process: function (status) {
-        return status;
+    /* jshint unused:false */
+    onTransport: function (request) {
+        
+    },
+    
+    onCleanup: function (request) {
+        
+    },
+    
+    onSuccess: function (request, status) {
+        
+    },
+    
+    onError: function (status) {
+        
+        
+    },
+    
+    setup: function (request) {
+        var me = this;
+        me.request = request;
+        me.onSetup(request);
+        request.process();
+        me.response = request.response;
+        return request;
+    },
+    
+    /* jshint unused:false */
+    transport: function (request) {
+        this.onTransport(request);
+        request.begin();
+        return request;
     },
     
     /* jshint unused:false */
     success: function (status) {
-        var response = this.response;
+        var me = this,
+            request = me.request,
+            response = request && request.response;
+        
+        
         
         // process response
-        if (response) {
-            response.process();
+        if (request) {
+            me.onSuccess(request, status);
+            me.onCleanup(request);
+            request.end();
+        }
+        else {
+            
+            return me.error(status);
+        
         }
         
-        this.cleanup(status);
+        // end response
+        response.end();
+        
+        delete me.request;
+        
         return response;
     },
     
     error: function (status) {
-        var response = this.response;
+        var me = this,
+            request = me.request,
+            response = request && request.response;
+        
+        me.onError(status);
         
         // process response
-        if (response) {
-            response.process();
+        if (request) {
+            me.onCleanup(request);
+            request.end();
         }
         
-        this.cleanup(status);
+        // end response
+        if (response) {
+            response.end();
+        }
+        
+        delete me.request;
+        
         return Promise.reject(status);
     },
     
     abort: function () {
-        var me = this,
-            request = me.request;
-        
-        if (!me.aborted) {   
-            me.aborted = true;
-            
-            if (request && LIBCORE.method(request.resolve)) {
-                request.resolve(0);
-            }
-        }
-    },
-    
-    cleanup: function () {
-        
+        //var me = this,
+        //    request = me.request;
+        //
+        //if (!me.aborted) {   
+        //    me.aborted = true;
+        //    
+        //    if (request && LIBCORE.method(request.resolve)) {
+        //        request.resolve(0);
+        //    }
+        //}
     }
 };
 
-module.exports = Request;
+module.exports = Driver;

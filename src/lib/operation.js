@@ -13,7 +13,7 @@ var LIBCORE = require("libcore"),
 function onCleanup(force) {
     var list = OPERATIONS,
         id = RUNNING;
-    var len, operation, now, ttl;
+    var len, operation, now, ttl, created;
 
     if (!CLEANING) {
         CLEANING = true;
@@ -23,13 +23,22 @@ function onCleanup(force) {
         
         for (len = list.length; len--;) {
             operation = list[len];
-            
-            if (!operation.destroyed &&
-                (force || operation.createdAt + ttl < now)) {
-                
+
+            if (force) {
                 operation.destroy();
                 
             }
+            else if (operation.destroyed) {
+                created = operation.createdAt;
+                
+                if (!created || operation.processing) {
+                    operation.createdAt = now;
+                }
+                else if (created + ttl < now) {
+                    operation.destroy();
+                }
+            }
+            
             if (operation.destroyed) {
                 list.splice(len, 1);
             }
@@ -44,7 +53,7 @@ function onCleanup(force) {
     }
 }
 
-function cleanup(force) {
+function runCleaner(force) {
     var id = RUNNING;
     
     if (force === true) {
@@ -60,20 +69,24 @@ function cleanup(force) {
 }
 
 function destructor() {
-    cleanup(true);
+    runCleaner(true);
 }
 
 function Request() {
     Operation.apply(this, arguments);
 }
 
+function Response() {
+    Operation.apply(this, arguments);
+}
+
+
 function Operation() {
     var list = OPERATIONS,
         me = this;
     me.destroyed = false;
-    me.using();
     list[list.length] = me;
-    cleanup();
+    runCleaner();
 }
 
 Operation.prototype = {
@@ -84,10 +97,27 @@ Operation.prototype = {
     body: null,
     data: null,
     destroyed: true,
+    processing: false,
     constructor: Operation,
     
-    using: function () {
-        this.createdAt = (new Date()).getTime();
+    begin: function () {
+        var me = this;
+        if (!me.destroyed && !me.processing) {
+            me.processing = true;
+            delete me.createdAt;
+            runCleaner();
+        }
+        return me;
+    },
+    
+    end: function () {
+        var me = this;
+        if (!me.destroyed && me.processing) {
+            delete me.processing;
+            delete me.createdAt;
+            runCleaner();
+        }
+        return me;
     },
     
     addHeaders: function (headers) {
@@ -117,8 +147,6 @@ Operation.prototype = {
             
         }
         
-        me.using();
-        
         return this;
     },
     
@@ -126,8 +154,6 @@ Operation.prototype = {
         var me = this,
             current = me.headers,
             CORE = LIBCORE;
-            
-        me.using();
         
         if (CORE.string(name) && CORE.object(current)) {
             name = HEADER.headerName(name);
@@ -141,25 +167,12 @@ Operation.prototype = {
         return null;
     },
     
-    process: function () {
-        var me = this,
-            result = TRANSFORMER.transform(me.header('content-type'),
-                                        false,
-                                        me.data),
-            headers = result[0];
-        
-        me.using();
-        
-        // data will be parsed to create body based on the content type
-        if (headers) {
-            me.addHeaders(headers);
-        }
-        
-        me.body = result[1];
-    },
-    
     destroy: function () {
-        LIBCORE.clear(this);
+        var me = this;
+        if (!me.destroyed) {
+            LIBCORE.clear(me);
+        }
+        return me;
     }
 };
 
@@ -167,10 +180,53 @@ Operation.prototype = {
 Request.prototype = LIBCORE.instantiate(Operation, {
     url: null,
     method: 'get',
-    constructor: Request
+    constructor: Request,
+    response: null,
+    process: function () {
+        var me = this,
+            result = TRANSFORMER.transform(me.header('content-type'),
+                                        false,
+                                        me.data),
+            headers = result[0],
+            response = me.response;
+        
+        // data will be parsed to create body based on the content type
+        if (headers) {
+            me.addHeaders(headers);
+        }
+        
+        me.body = result[1];
+        
+        // create response
+        if (response) {
+            response.destroy();
+        }
+        
+        me.response = response = new Response();
+        response.begin();
+    }
 });
 
-Request.Operation = Operation;
+Response.prototype = LIBCORE.instantiate(Operation, {
+    constructor: Response,
+    status: 0,
+    statusText: 'Uninitialized',
+    process: function () {
+        var me = this,
+            result = TRANSFORMER.transform(me.header('content-type'),
+                                        true,
+                                        me.body),
+            headers = result[0];
+        
+        // body will be parsed to create data based on the content type
+        if (headers) {
+            me.addHeaders(headers);
+        }
+        me.data = result[1];
+        
+    }
+});
+
 
 LIBDOM.destructor(destructor);
 

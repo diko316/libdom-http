@@ -3,7 +3,6 @@
 var LIBCORE = require("libcore"),
     LIBDOM = require("libdom"),
     DRIVER = require("./driver.js"),
-    HEADER = require("./header.js"),
     OPERATION = require("./operation.js"),
     DEFAULTS = LIBCORE.createRegistry(),
     METHODS = ['get','post','put','patch','delete','options'],
@@ -58,7 +57,12 @@ function applyRequestForm(form, requestObject) {
     
     item = form.method;
     if (isString(item)) {
-        requestObject.method = item;
+        requestObject.method = normalizeMethod(item);
+    }
+    
+    item = form.getAttribute('transporter');
+    if (isString(item)) {
+        requestObject.driver = item;
     }
     
     requestObject.data = form;
@@ -86,24 +90,22 @@ function applyRequestConfig(config, requestObject) {
     
     item = config.method;
     if (isString(item)) {
-        requestObject.method = item;
+        requestObject.method = normalizeMethod(item);
     }
     
-    item = config.url;
+    item = config.driver;
     if (isString(item)) {
-        requestObject.url = item;
+        requestObject.driver = item;
     }
     
     // add headers
     requestObject.addHeaders(config.headers);
+    
+    data = null;
 }
 
 function isForm(object) {
     return LIBDOM.is(object, 1) && object.tagName.toUpperCase() === 'FORM';
-}
-
-function isValidRequest(reqeustObject) {
-    
 }
 
 
@@ -112,14 +114,17 @@ function request(url, config) {
         isString = CORE.string,
         isObject = CORE.object,
         applyConfig = applyRequestConfig,
-        requestObject = new OPERATION();
-        
+        requestObject = new OPERATION(),
+        PROMISE = Promise;
+    var driver;
+    
     // apply defaults
     applyConfig(DEFAULTS.clone(), requestObject);
     
     // process config
     if (isString(url)) {
         requestObject.url = url;
+        
         if (isObject(config)) {
             applyConfig(config, requestObject);
         }
@@ -131,58 +136,24 @@ function request(url, config) {
         applyRequestForm(url, requestObject);
     }
     
+    // validate
+    if (isString(requestObject.url)) {
+        
+        driver = sniffDriver(requestObject);
+        if (driver) {
+            driver = new (DRIVER.get(driver))(requestObject);
+            return PROMISE.resolve(requestObject).
+                    then(driver.setup).
+                    then(driver.transport).
+                    then(driver.success)
+                    ["catch"](driver.error);
+        }
+        
+    }
+    
+    return PROMISE.reject("Invalid HTTP request configuration.");
+    
 }
-
-//function request(url, config) {
-//    var CORE = LIBCORE,
-//        isString = CORE.string,
-//        isObject = CORE.object,
-//        Header = HEADER,
-//        runRequest = false;
-//    var headers, item, defaults;
-//    
-//    // break it down
-//    if (isObject(url)) {
-//        config = url;
-//        url = config.url;
-//    }
-//    
-//    // yes it can run
-//    if (isString(url)) {
-//        
-//        defaults = DEFAULTS.clone();
-//        
-//        // populate config
-//        if (isObject(config)) {
-//            config = CORE.assign({}, config, defaults);
-//        }
-//        else {
-//            config = CORE.assign({}, defaults);
-//        }
-//        
-//        // finalize url
-//        config.url = url;
-//        
-//        // finalize method
-//        config.method = normalizeMethod(config.method);
-//        
-//        // finalize headers before deciding what driver to use
-//        headers = Header.parse(defaults.headers) || {};
-//        item = Header.parse(config.headers);
-//        if (item) {
-//            CORE.assign(headers, item);
-//        }
-//        config.headers = item;
-//        runRequest = true;
-//    }
-//    
-//    if (runRequest) {
-//        return DRIVER.run(sniffDriver(config),
-//                        config);
-//    }
-//    
-//    return Promise.reject("Invalid http request");
-//}
 
 function accessDefaults(name, value) {
     var defaults = DEFAULTS;

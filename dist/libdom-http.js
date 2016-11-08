@@ -22,13 +22,13 @@
         module.exports = __webpack_require__(1);
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var LIBCORE = __webpack_require__(2), DETECT = __webpack_require__(12), DRIVER = __webpack_require__(37), TRANSFORMER = __webpack_require__(40), REQUEST = __webpack_require__(47), rehash = LIBCORE.rehash, register = TRANSFORMER.register, EXPORTS = REQUEST.request;
+        var LIBCORE = __webpack_require__(2), DETECT = __webpack_require__(12), DRIVER = __webpack_require__(37), TRANSFORMER = __webpack_require__(38), REQUEST = __webpack_require__(44), rehash = LIBCORE.rehash, register = TRANSFORMER.register, EXPORTS = REQUEST.request;
         if (DETECT.xhr) {
-            DRIVER.register("xhr", __webpack_require__(48));
-            DRIVER.register("xhr2", __webpack_require__(50));
+            DRIVER.register("xhr", __webpack_require__(47));
+            DRIVER.register("xhr2", __webpack_require__(49));
         }
         if (DETECT.formdata) {
-            register("multipart/form-data", false, __webpack_require__(51));
+            register("multipart/form-data", false, __webpack_require__(50));
         }
         rehash(EXPORTS, REQUEST, {
             request: "request"
@@ -3442,11 +3442,11 @@
         module.exports = EXPORTS;
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var LIBCORE = __webpack_require__(2), DRIVERS = LIBCORE.createRegistry(), OPERATION = __webpack_require__(38), RESPONSE = __webpack_require__(46), DEFAULT = null, EXPORTS = {
+        var LIBCORE = __webpack_require__(2), DRIVERS = LIBCORE.createRegistry(), DEFAULT = null, EXPORTS = {
             register: register,
             exists: exists,
-            run: request,
-            use: use
+            use: use,
+            get: get
         };
         function register(name, Class) {
             var CORE = LIBCORE;
@@ -3468,32 +3468,381 @@
             }
             return DEFAULT;
         }
-        function request(type, config) {
-            var operation = new OPERATION(), Driver = DRIVERS.get(type), driver = new Driver();
-            var promise;
-            driver.request = operation;
-            driver.url = config.url;
-            driver.method = config.method;
-            driver.config = config;
-            operation.addHeaders(config.headers);
-            operation.data = config.params || config.data || config.body;
-            promise = Promise.resolve(operation).then(driver.setup).then(driver.transport).then(function(data) {
-                var response = new RESPONSE(operation);
-                driver.response = response;
-                response.request = driver.request;
-                response = null;
-                return data;
-            }).then(driver.process).then(driver.success)["catch"](driver.error);
-            driver.api = promise;
-            return promise;
+        function get(type) {
+            return DRIVERS.get(type);
         }
         module.exports = EXPORTS;
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var LIBCORE = __webpack_require__(2), LIBDOM = __webpack_require__(13), HEADER = __webpack_require__(39), TRANSFORMER = __webpack_require__(40), CLEANING = false, CLEAN_INTERVAL = 1e3, TTL = 1e4, RUNNING = false, OPERATIONS = [];
+        var LIBCORE = __webpack_require__(2), TYPES = __webpack_require__(39), TRANSFORMERS = LIBCORE.createRegistry(), REQUEST_PREFIX = "request-", RESPONSE_PREFIX = "response-", EXPORTS = {
+            register: register,
+            transform: transform
+        };
+        var item;
+        function register(type, response, handler) {
+            var CORE = LIBCORE, transformers = TRANSFORMERS, responsePrefix = RESPONSE_PREFIX;
+            var finalType, current, all;
+            if (CORE.method(handler)) {
+                type = TYPES.parse(type);
+                if (type) {
+                    all = response === "all";
+                    response = response === true ? REQUEST_PREFIX : responsePrefix;
+                    finalType = response + type.root;
+                    current = response + type.string;
+                    if (current !== finalType && !transformers.exists(finalType)) {
+                        transformers.set(finalType, handler);
+                    }
+                    transformers.set(current, handler);
+                    if (all) {
+                        transformers.set(responsePrefix + type.string, handler);
+                    }
+                }
+            }
+            return EXPORTS;
+        }
+        function transform(type, response, data) {
+            var transformers = TRANSFORMERS;
+            var finalType;
+            type = TYPES.parse(type);
+            if (type) {
+                response = response === true ? REQUEST_PREFIX : RESPONSE_PREFIX;
+                finalType = response + type.string;
+                if (transformers.exists(finalType)) {
+                    return transformers.get(finalType)(data);
+                }
+                finalType = response + type.root;
+                if (transformers.exists(finalType)) {
+                    data = transformers.get(finalType)(data);
+                    return LIBCORE.array(data) ? data : [ null, null ];
+                }
+            }
+            return [ null, data ];
+        }
+        module.exports = EXPORTS;
+        item = __webpack_require__(40);
+        register("application/json", false, item).register("text/x-json", false, item);
+        item = __webpack_require__(41);
+        register("application/json", true, item).register("text/x-json", true, item);
+        register("application/x-www-form-urlencoded", false, __webpack_require__(42)).register("multipart/form-data", false, __webpack_require__(43));
+    }, function(module, exports, __webpack_require__) {
+        "use strict";
+        var LIBCORE = __webpack_require__(2), MIME_TYPE_RE = /^([a-z0-9\-\_]+)\/([a-z\-\_0-9]+)(([ \s\t]*\;([^\;]+))*)$/, MIME_TYPE_PARAMS_RE = /^[ \t\s]*([a-z0-9\-\_]+)\=(\"([^\"]+)\"|[a-z0-9\-\_]+)[ \t\s]*$/, QUOTED_RE = /^\"[^\"]+\"/, EXPORTS = {
+            parse: parseType
+        };
+        function parseType(type) {
+            var mtypeRe = MIME_TYPE_RE, paramRe = MIME_TYPE_PARAMS_RE, quotedRe = QUOTED_RE, CORE = LIBCORE, paramGlue = "; ", parameterObject = null;
+            var match, subtype, parameters, name, value, l, defaultType;
+            if (CORE.string(type) && mtypeRe.test(type)) {
+                match = type.match(mtypeRe);
+                type = match[1].toLowerCase();
+                subtype = match[2].toLowerCase();
+                parameters = match[3] || "";
+                if (parameters) {
+                    parameterObject = {};
+                    parameters = parameters.split(";");
+                    l = parameters.length;
+                    for (;l--; ) {
+                        match = parameters[l].match(paramRe);
+                        if (match) {
+                            name = match[1].toLowerCase();
+                            value = match[2];
+                            parameters[l] = name + "=" + value;
+                            parameterObject[name] = quotedRe.test(value) ? value.substring(1, value.length - 1) : value;
+                        }
+                    }
+                    parameters = parameters.join(paramGlue);
+                }
+                defaultType = type + "/" + subtype;
+                return {
+                    string: defaultType + (parameters ? paramGlue + parameters : ""),
+                    root: defaultType,
+                    type: type,
+                    subtype: subtype,
+                    params: parameterObject
+                };
+            }
+            return void 0;
+        }
+        module.exports = EXPORTS;
+    }, function(module, exports, __webpack_require__) {
+        (function(global) {
+            "use strict";
+            var LIBCORE = __webpack_require__(2), json = global.JSON;
+            if (!json) {
+                json = false;
+            }
+            function convert(data) {
+                if (!json) {
+                    throw new Error("JSON is not supported in this platform");
+                } else if (!LIBCORE.object(data)) {
+                    return [ null, "" ];
+                }
+                try {
+                    data = json.stringify(data);
+                } catch (e) {
+                    return [ null, "" ];
+                }
+                return [ null, data ];
+            }
+            module.exports = convert;
+        }).call(exports, function() {
+            return this;
+        }());
+    }, function(module, exports, __webpack_require__) {
+        (function(global) {
+            "use strict";
+            var LIBCORE = __webpack_require__(2), json = global.JSON;
+            if (!json) {
+                json = false;
+            }
+            function convert(data) {
+                if (!json) {
+                    throw new Error("JSON is not supported in this platform");
+                } else if (!LIBCORE.string(data)) {
+                    return null;
+                }
+                try {
+                    data = json.parse(data);
+                } catch (e) {
+                    return null;
+                }
+                return [ null, data ];
+            }
+            module.exports = convert;
+        }).call(exports, function() {
+            return this;
+        }());
+    }, function(module, exports, __webpack_require__) {
+        "use strict";
+        var LIBCORE = __webpack_require__(2), LIBDOM = __webpack_require__(13), browser = LIBDOM.env.browser, jsonTransform = __webpack_require__(40);
+        function eachProperty(value, name) {
+            var CORE = LIBCORE, set = setOutputValue, output = this;
+            var c, l;
+            if (CORE.array(value)) {
+                for (c = -1, l = value.length; l--; ) {
+                    set(output, name, value[++c]);
+                }
+            } else {
+                set(output, name, value);
+            }
+        }
+        function setOutputValue(output, name, value) {
+            var CORE = LIBCORE, isString = CORE.string;
+            value = CORE.number(value) ? value.toString(10) : isString(value) ? value : jsonTransform(value);
+            output[output.length] = name + "=" + (isString(value) ? encodeURIComponent(value) : "");
+        }
+        function applyFieldValue(name, input, output) {
+            var value = input.value, set = setOutputValue;
+            var options, option, c, l;
+            switch (input.type) {
+              case "select":
+                options = input.options;
+                for (c = -1, l = options.length; l--; ) {
+                    option = options[++c];
+                    if (option.selected) {
+                        set(output, name, option.value);
+                    }
+                }
+                break;
+
+              case "radio":
+              case "checkbox":
+                if (input.checked) {
+                    set(output, name, value);
+                }
+                break;
+
+              default:
+                set(output, name, value);
+            }
+            options = option = null;
+            return output;
+        }
+        function getFieldPairs(form) {
+            var isString = LIBCORE.string, elements = form.elements, c = -1, l = elements.length, apply = applyFieldValue, output = [];
+            var node, name;
+            for (;l--; ) {
+                node = elements[++c];
+                name = node.name;
+                if (isString(name)) {
+                    apply(name, node, output);
+                }
+            }
+            elements = node = null;
+            return output;
+        }
+        function fromObject(data) {
+            var output = [];
+            LIBCORE.each(data, eachProperty, output);
+            return output;
+        }
+        function convert(data) {
+            var CORE = LIBCORE;
+            if (browser && LIBDOM.is(data, 1) && data.tagName.toUpperCase() === "FORM") {
+                data = getFieldPairs(data).join("&");
+            }
+            if (CORE.object(data)) {
+                return [ null, fromObject(data).join("&") ];
+            } else if (CORE.string(data)) {
+                return [ null, data ];
+            }
+            return null;
+        }
+        module.exports = convert;
+        convert.fromForm = getFieldPairs;
+        convert.fromObject = fromObject;
+    }, function(module, exports, __webpack_require__) {
+        "use strict";
+        var LIBDOM = __webpack_require__(13), LIBCORE = __webpack_require__(2), browser = LIBDOM.env.browser, URL_ENCODE = __webpack_require__(42), EOL = "\r\n", BOUNDARY_LENGTH = 48;
+        function createBoundary() {
+            var ender = Math.random().toString().substr(2), output = [], len = 0, total = BOUNDARY_LENGTH - ender.length;
+            for (;total--; ) {
+                output[len++] = "-";
+            }
+            output[len++] = ender;
+            return output.join("");
+        }
+        function encodePairs(output) {
+            var boundary = createBoundary(), eol = EOL, headers = [ "Content-Type: multipart/form-data; charset=utf-8;", "    boundary=" + boundary ], c = -1, l = output.length, len = 0, body = [];
+            var contentHeader, name, value, index;
+            for (;l--; ) {
+                value = output[++c];
+                index = value.indexOf("=");
+                name = value.substring(0, index);
+                value = value.substring(index + 1, value.length);
+                contentHeader = [ 'Content-Disposition: form-data; name="' + name + '"', "Content-type: application/octet-stream", eol ];
+                body[len++] = contentHeader.join(eol) + value;
+            }
+            return [ headers.join(eol), body.join(eol + boundary + eol) ];
+        }
+        function convert(data) {
+            var CORE = LIBCORE, urlencode = URL_ENCODE;
+            if (browser && LIBDOM.is(data, 1) && data.tagName.toUpperCase() === "FORM") {
+                return encodePairs(urlencode.fromForm(data));
+            }
+            if (CORE.object(data)) {
+                return encodePairs(urlencode.fromObject(data));
+            } else if (CORE.string(data)) {
+                return [ null, data ];
+            }
+            return null;
+        }
+        module.exports = convert;
+    }, function(module, exports, __webpack_require__) {
+        "use strict";
+        var LIBCORE = __webpack_require__(2), LIBDOM = __webpack_require__(13), DRIVER = __webpack_require__(37), OPERATION = __webpack_require__(45), DEFAULTS = LIBCORE.createRegistry(), METHODS = [ "get", "post", "put", "patch", "delete", "options" ], EXPORTS = {
+            request: request,
+            defaults: accessDefaults
+        };
+        function normalizeMethod(method) {
+            if (LIBCORE.string(method)) {
+                method = method.toLowerCase();
+                if (METHODS.indexOf(method) !== -1) {
+                    return method;
+                }
+            }
+            return DEFAULTS.get("method");
+        }
+        function sniffDriver(config) {
+            var driver = config.driver, mgr = DRIVER;
+            LIBCORE.run("libdom-http.driver.resolve", [ config, driver ]);
+            driver = config.driver;
+            if (mgr.exists(driver)) {
+                return driver;
+            }
+            return mgr.use();
+        }
+        function applyRequestForm(form, requestObject) {
+            var CORE = LIBCORE, isString = CORE.string;
+            var item;
+            item = form.enctype || form.encoding;
+            if (isString(item)) {
+                requestObject.addHeaders("Content-type: " + item);
+            }
+            item = form.action;
+            if (isString(item)) {
+                requestObject.url = item;
+            }
+            item = form.method;
+            if (isString(item)) {
+                requestObject.method = normalizeMethod(item);
+            }
+            item = form.getAttribute("transporter");
+            if (isString(item)) {
+                requestObject.driver = item;
+            }
+            requestObject.data = form;
+        }
+        function applyRequestConfig(config, requestObject) {
+            var CORE = LIBCORE, isString = CORE.string, data = config.form || config.data || config.params || config.body;
+            var item;
+            if (isForm(data)) {
+                applyRequestForm(data, requestObject);
+            } else if (data !== null || data !== void 0) {
+                requestObject.data = data;
+            }
+            item = config.url;
+            if (isString(item)) {
+                requestObject.url = item;
+            }
+            item = config.method;
+            if (isString(item)) {
+                requestObject.method = normalizeMethod(item);
+            }
+            item = config.driver;
+            if (isString(item)) {
+                requestObject.driver = item;
+            }
+            requestObject.addHeaders(config.headers);
+            data = null;
+        }
+        function isForm(object) {
+            return LIBDOM.is(object, 1) && object.tagName.toUpperCase() === "FORM";
+        }
+        function request(url, config) {
+            var CORE = LIBCORE, isString = CORE.string, isObject = CORE.object, applyConfig = applyRequestConfig, requestObject = new OPERATION(), PROMISE = Promise;
+            var driver;
+            applyConfig(DEFAULTS.clone(), requestObject);
+            if (isString(url)) {
+                requestObject.url = url;
+                if (isObject(config)) {
+                    applyConfig(config, requestObject);
+                }
+            } else if (isObject(url)) {
+                applyConfig(url, requestObject);
+            } else if (isForm(url)) {
+                applyRequestForm(url, requestObject);
+            }
+            if (isString(requestObject.url)) {
+                driver = sniffDriver(requestObject);
+                if (driver) {
+                    driver = new (DRIVER.get(driver))(requestObject);
+                    return PROMISE.resolve(requestObject).then(driver.setup).then(driver.transport).then(driver.success)["catch"](driver.error);
+                }
+            }
+            return PROMISE.reject("Invalid HTTP request configuration.");
+        }
+        function accessDefaults(name, value) {
+            var defaults = DEFAULTS;
+            if (arguments.length > 1) {
+                defaults.set(name, value);
+                return EXPORTS.chain;
+            }
+            return defaults.get(name);
+        }
+        module.exports = EXPORTS;
+        DRIVER.use("xhr");
+        DEFAULTS.set("method", "get");
+        DEFAULTS.set("headers", {
+            accept: "application/json,text/x-json,text/plain,*/*;q=0.8",
+            "conten-type": "application/json"
+        });
+    }, function(module, exports, __webpack_require__) {
+        "use strict";
+        var LIBCORE = __webpack_require__(2), LIBDOM = __webpack_require__(13), HEADER = __webpack_require__(46), TRANSFORMER = __webpack_require__(38), CLEANING = false, CLEAN_INTERVAL = 1e3, TTL = 1e4, RUNNING = false, OPERATIONS = [];
         function onCleanup(force) {
             var list = OPERATIONS, id = RUNNING;
-            var len, operation, now, ttl;
+            var len, operation, now, ttl, created;
             if (!CLEANING) {
                 CLEANING = true;
                 now = new Date().getTime();
@@ -3501,8 +3850,15 @@
                 force = force === true;
                 for (len = list.length; len--; ) {
                     operation = list[len];
-                    if (!operation.destroyed && (force || operation.createdAt + ttl < now)) {
+                    if (force) {
                         operation.destroy();
+                    } else if (operation.destroyed) {
+                        created = operation.createdAt;
+                        if (!created || operation.processing) {
+                            operation.createdAt = now;
+                        } else if (created + ttl < now) {
+                            operation.destroy();
+                        }
                     }
                     if (operation.destroyed) {
                         list.splice(len, 1);
@@ -3515,7 +3871,7 @@
                 CLEANING = false;
             }
         }
-        function cleanup(force) {
+        function runCleaner(force) {
             var id = RUNNING;
             if (force === true) {
                 if (id) {
@@ -3528,17 +3884,19 @@
             }
         }
         function destructor() {
-            cleanup(true);
+            runCleaner(true);
         }
         function Request() {
+            Operation.apply(this, arguments);
+        }
+        function Response() {
             Operation.apply(this, arguments);
         }
         function Operation() {
             var list = OPERATIONS, me = this;
             me.destroyed = false;
-            me.using();
             list[list.length] = me;
-            cleanup();
+            runCleaner();
         }
         Operation.prototype = {
             createdAt: void 0,
@@ -3547,9 +3905,25 @@
             body: null,
             data: null,
             destroyed: true,
+            processing: false,
             constructor: Operation,
-            using: function() {
-                this.createdAt = new Date().getTime();
+            begin: function() {
+                var me = this;
+                if (!me.destroyed && !me.processing) {
+                    me.processing = true;
+                    delete me.createdAt;
+                    runCleaner();
+                }
+                return me;
+            },
+            end: function() {
+                var me = this;
+                if (!me.destroyed && me.processing) {
+                    delete me.processing;
+                    delete me.createdAt;
+                    runCleaner();
+                }
+                return me;
             },
             addHeaders: function(headers) {
                 var me = this, CORE = LIBCORE;
@@ -3569,12 +3943,10 @@
                         delete me.contenType;
                     }
                 }
-                me.using();
                 return this;
             },
             header: function(name) {
                 var me = this, current = me.headers, CORE = LIBCORE;
-                me.using();
                 if (CORE.string(name) && CORE.object(current)) {
                     name = HEADER.headerName(name);
                     if (CORE.contains(current, name)) {
@@ -3583,24 +3955,44 @@
                 }
                 return null;
             },
-            process: function() {
-                var me = this, result = TRANSFORMER.transform(me.header("content-type"), false, me.data), headers = result[0];
-                me.using();
-                if (headers) {
-                    me.addHeaders(headers);
-                }
-                me.body = result[1];
-            },
             destroy: function() {
-                LIBCORE.clear(this);
+                var me = this;
+                if (!me.destroyed) {
+                    LIBCORE.clear(me);
+                }
+                return me;
             }
         };
         Request.prototype = LIBCORE.instantiate(Operation, {
             url: null,
             method: "get",
-            constructor: Request
+            constructor: Request,
+            response: null,
+            process: function() {
+                var me = this, result = TRANSFORMER.transform(me.header("content-type"), false, me.data), headers = result[0], response = me.response;
+                if (headers) {
+                    me.addHeaders(headers);
+                }
+                me.body = result[1];
+                if (response) {
+                    response.destroy();
+                }
+                me.response = response = new Response();
+                response.begin();
+            }
         });
-        Request.Operation = Operation;
+        Response.prototype = LIBCORE.instantiate(Operation, {
+            constructor: Response,
+            status: 0,
+            statusText: "Uninitialized",
+            process: function() {
+                var me = this, result = TRANSFORMER.transform(me.header("content-type"), true, me.body), headers = result[0];
+                if (headers) {
+                    me.addHeaders(headers);
+                }
+                me.data = result[1];
+            }
+        });
         LIBDOM.destructor(destructor);
         module.exports = Request;
     }, function(module, exports, __webpack_require__) {
@@ -3722,381 +4114,9 @@
         }
         module.exports = EXPORTS;
     }, function(module, exports, __webpack_require__) {
-        "use strict";
-        var LIBCORE = __webpack_require__(2), TYPES = __webpack_require__(41), TRANSFORMERS = LIBCORE.createRegistry(), REQUEST_PREFIX = "request-", RESPONSE_PREFIX = "response-", EXPORTS = {
-            register: register,
-            transform: transform
-        };
-        var item;
-        function register(type, response, handler) {
-            var CORE = LIBCORE, transformers = TRANSFORMERS, responsePrefix = RESPONSE_PREFIX;
-            var finalType, current, all;
-            if (CORE.method(handler)) {
-                type = TYPES.parse(type);
-                if (type) {
-                    all = response === "all";
-                    response = response === true ? REQUEST_PREFIX : responsePrefix;
-                    finalType = response + type.root;
-                    current = response + type.string;
-                    if (current !== finalType && !transformers.exists(finalType)) {
-                        transformers.set(finalType, handler);
-                    }
-                    transformers.set(current, handler);
-                    if (all) {
-                        transformers.set(responsePrefix + type.string, handler);
-                    }
-                }
-            }
-            return EXPORTS;
-        }
-        function transform(type, response, data) {
-            var transformers = TRANSFORMERS;
-            var finalType;
-            type = TYPES.parse(type);
-            if (type) {
-                response = response === true ? REQUEST_PREFIX : RESPONSE_PREFIX;
-                finalType = response + type.string;
-                if (transformers.exists(finalType)) {
-                    return transformers.get(finalType)(data);
-                }
-                finalType = response + type.root;
-                if (transformers.exists(finalType)) {
-                    data = transformers.get(finalType)(data);
-                    return LIBCORE.array(data) ? data : [ null, null ];
-                }
-            }
-            return [ null, data ];
-        }
-        module.exports = EXPORTS;
-        item = __webpack_require__(42);
-        register("application/json", false, item).register("text/x-json", false, item);
-        item = __webpack_require__(43);
-        register("application/json", true, item).register("text/x-json", true, item);
-        register("application/x-www-form-urlencoded", false, __webpack_require__(44)).register("multipart/form-data", false, __webpack_require__(45));
-    }, function(module, exports, __webpack_require__) {
-        "use strict";
-        var LIBCORE = __webpack_require__(2), MIME_TYPE_RE = /^([a-z0-9\-\_]+)\/([a-z\-\_0-9]+)(([ \s\t]*\;([^\;]+))*)$/, MIME_TYPE_PARAMS_RE = /^[ \t\s]*([a-z0-9\-\_]+)\=(\"([^\"]+)\"|[a-z0-9\-\_]+)[ \t\s]*$/, QUOTED_RE = /^\"[^\"]+\"/, EXPORTS = {
-            parse: parseType
-        };
-        function parseType(type) {
-            var mtypeRe = MIME_TYPE_RE, paramRe = MIME_TYPE_PARAMS_RE, quotedRe = QUOTED_RE, CORE = LIBCORE, paramGlue = "; ", parameterObject = null;
-            var match, subtype, parameters, name, value, l, defaultType;
-            if (CORE.string(type) && mtypeRe.test(type)) {
-                match = type.match(mtypeRe);
-                type = match[1].toLowerCase();
-                subtype = match[2].toLowerCase();
-                parameters = match[3] || "";
-                if (parameters) {
-                    parameterObject = {};
-                    parameters = parameters.split(";");
-                    l = parameters.length;
-                    for (;l--; ) {
-                        match = parameters[l].match(paramRe);
-                        if (match) {
-                            name = match[1].toLowerCase();
-                            value = match[2];
-                            parameters[l] = name + "=" + value;
-                            parameterObject[name] = quotedRe.test(value) ? value.substring(1, value.length - 1) : value;
-                        }
-                    }
-                    parameters = parameters.join(paramGlue);
-                }
-                defaultType = type + "/" + subtype;
-                return {
-                    string: defaultType + (parameters ? paramGlue + parameters : ""),
-                    root: defaultType,
-                    type: type,
-                    subtype: subtype,
-                    params: parameterObject
-                };
-            }
-            return void 0;
-        }
-        module.exports = EXPORTS;
-    }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
-            var LIBCORE = __webpack_require__(2), json = global.JSON;
-            if (!json) {
-                json = false;
-            }
-            function convert(data) {
-                if (!json) {
-                    throw new Error("JSON is not supported in this platform");
-                } else if (!LIBCORE.object(data)) {
-                    return [ null, "" ];
-                }
-                try {
-                    data = json.stringify(data);
-                } catch (e) {
-                    return [ null, "" ];
-                }
-                return [ null, data ];
-            }
-            module.exports = convert;
-        }).call(exports, function() {
-            return this;
-        }());
-    }, function(module, exports, __webpack_require__) {
-        (function(global) {
-            "use strict";
-            var LIBCORE = __webpack_require__(2), json = global.JSON;
-            if (!json) {
-                json = false;
-            }
-            function convert(data) {
-                if (!json) {
-                    throw new Error("JSON is not supported in this platform");
-                } else if (!LIBCORE.string(data)) {
-                    return null;
-                }
-                try {
-                    data = json.parse(data);
-                } catch (e) {
-                    return null;
-                }
-                return [ null, data ];
-            }
-            module.exports = convert;
-        }).call(exports, function() {
-            return this;
-        }());
-    }, function(module, exports, __webpack_require__) {
-        "use strict";
-        var LIBCORE = __webpack_require__(2), LIBDOM = __webpack_require__(13), browser = LIBDOM.env.browser, jsonTransform = __webpack_require__(42);
-        function eachProperty(value, name) {
-            var CORE = LIBCORE, set = setOutputValue, output = this;
-            var c, l;
-            if (CORE.array(value)) {
-                for (c = -1, l = value.length; l--; ) {
-                    set(output, name, value[++c]);
-                }
-            } else {
-                set(output, name, value);
-            }
-        }
-        function setOutputValue(output, name, value) {
-            var CORE = LIBCORE, isString = CORE.string;
-            value = CORE.number(value) ? value.toString(10) : isString(value) ? value : jsonTransform(value);
-            output[output.length] = name + "=" + (isString(value) ? encodeURIComponent(value) : "");
-        }
-        function applyFieldValue(name, input, output) {
-            var value = input.value, set = setOutputValue;
-            var options, option, c, l;
-            switch (input.type) {
-              case "select":
-                options = input.options;
-                for (c = -1, l = options.length; l--; ) {
-                    option = options[++c];
-                    if (option.selected) {
-                        set(output, name, option.value);
-                    }
-                }
-                break;
-
-              case "radio":
-              case "checkbox":
-                if (input.checked) {
-                    set(output, name, value);
-                }
-                break;
-
-              default:
-                set(output, name, value);
-            }
-            options = option = null;
-            return output;
-        }
-        function getFieldPairs(form) {
-            var isString = LIBCORE.string, elements = form.elements, c = -1, l = elements.length, apply = applyFieldValue, output = [];
-            var node, name;
-            for (;l--; ) {
-                node = elements[++c];
-                name = node.name;
-                if (isString(name)) {
-                    apply(name, node, output);
-                }
-            }
-            elements = node = null;
-            return output;
-        }
-        function fromObject(data) {
-            var output = [];
-            LIBCORE.each(data, eachProperty, output);
-            return output;
-        }
-        function convert(data) {
-            var CORE = LIBCORE;
-            if (browser && LIBDOM.is(data, 1) && data.tagName.toUpperCase() === "FORM") {
-                data = getFieldPairs(data).join("&");
-            }
-            if (CORE.object(data)) {
-                return [ null, fromObject(data).join("&") ];
-            } else if (CORE.string(data)) {
-                return [ null, data ];
-            }
-            return null;
-        }
-        module.exports = convert;
-        convert.fromForm = getFieldPairs;
-        convert.fromObject = fromObject;
-    }, function(module, exports, __webpack_require__) {
-        "use strict";
-        var LIBDOM = __webpack_require__(13), LIBCORE = __webpack_require__(2), browser = LIBDOM.env.browser, URL_ENCODE = __webpack_require__(44), EOL = "\r\n", BOUNDARY_LENGTH = 48;
-        function createBoundary() {
-            var ender = Math.random().toString().substr(2), output = [], len = 0, total = BOUNDARY_LENGTH - ender.length;
-            for (;total--; ) {
-                output[len++] = "-";
-            }
-            output[len++] = ender;
-            return output.join("");
-        }
-        function encodePairs(output) {
-            var boundary = createBoundary(), eol = EOL, headers = [ "Content-Type: multipart/form-data; charset=utf-8;", "    boundary=" + boundary ], c = -1, l = output.length, len = 0, body = [];
-            var contentHeader, name, value, index;
-            for (;l--; ) {
-                value = output[++c];
-                index = value.indexOf("=");
-                name = value.substring(0, index);
-                value = value.substring(index + 1, value.length);
-                contentHeader = [ 'Content-Disposition: form-data; name="' + name + '"', "Content-type: application/octet-stream", eol ];
-                body[len++] = contentHeader.join(eol) + value;
-            }
-            return [ headers.join(eol), body.join(eol + boundary + eol) ];
-        }
-        function convert(data) {
-            var CORE = LIBCORE, urlencode = URL_ENCODE;
-            if (browser && LIBDOM.is(data, 1) && data.tagName.toUpperCase() === "FORM") {
-                return encodePairs(urlencode.fromForm(data));
-            }
-            if (CORE.object(data)) {
-                return encodePairs(urlencode.fromObject(data));
-            } else if (CORE.string(data)) {
-                return [ null, data ];
-            }
-            return null;
-        }
-        module.exports = convert;
-    }, function(module, exports, __webpack_require__) {
-        "use strict";
-        var LIBCORE = __webpack_require__(2), REQUEST = __webpack_require__(38), OPERATION = REQUEST.Operation, TRANSFORMER = __webpack_require__(40);
-        function Response() {
-            OPERATION.apply(this, arguments);
-        }
-        Response.prototype = LIBCORE.instantiate(OPERATION, {
-            constructor: Response,
-            status: 0,
-            statusText: "Uninitialized",
-            process: function() {
-                var me = this, result = TRANSFORMER.transform(me.header("content-type"), true, me.body), headers = result[0];
-                me.using();
-                if (headers) {
-                    me.addHeaders(headers);
-                }
-                me.data = result[1];
-            }
-        });
-        module.exports = Response;
-    }, function(module, exports, __webpack_require__) {
-        "use strict";
-        var LIBCORE = __webpack_require__(2), LIBDOM = __webpack_require__(13), DRIVER = __webpack_require__(37), HEADER = __webpack_require__(39), OPERATION = __webpack_require__(38), DEFAULTS = LIBCORE.createRegistry(), METHODS = [ "get", "post", "put", "patch", "delete", "options" ], EXPORTS = {
-            request: request,
-            defaults: accessDefaults
-        };
-        function normalizeMethod(method) {
-            if (LIBCORE.string(method)) {
-                method = method.toLowerCase();
-                if (METHODS.indexOf(method) !== -1) {
-                    return method;
-                }
-            }
-            return DEFAULTS.get("method");
-        }
-        function sniffDriver(config) {
-            var driver = config.driver, mgr = DRIVER;
-            LIBCORE.run("libdom-http.driver.resolve", [ config, driver ]);
-            driver = config.driver;
-            if (mgr.exists(driver)) {
-                return driver;
-            }
-            return mgr.use();
-        }
-        function applyRequestForm(form, requestObject) {
-            var CORE = LIBCORE, isString = CORE.string;
-            var item;
-            item = form.enctype || form.encoding;
-            if (isString(item)) {
-                requestObject.addHeaders("Content-type: " + item);
-            }
-            item = form.action;
-            if (isString(item)) {
-                requestObject.url = item;
-            }
-            item = form.method;
-            if (isString(item)) {
-                requestObject.method = item;
-            }
-            requestObject.data = form;
-        }
-        function applyRequestConfig(config, requestObject) {
-            var CORE = LIBCORE, isString = CORE.string, data = config.form || config.data || config.params || config.body;
-            var item;
-            if (isForm(data)) {
-                applyRequestForm(data, requestObject);
-            } else if (data !== null || data !== void 0) {
-                requestObject.data = data;
-            }
-            item = config.url;
-            if (isString(item)) {
-                requestObject.url = item;
-            }
-            item = config.method;
-            if (isString(item)) {
-                requestObject.method = item;
-            }
-            item = config.url;
-            if (isString(item)) {
-                requestObject.url = item;
-            }
-            requestObject.addHeaders(config.headers);
-        }
-        function isForm(object) {
-            return LIBDOM.is(object, 1) && object.tagName.toUpperCase() === "FORM";
-        }
-        function isValidRequest(reqeustObject) {}
-        function request(url, config) {
-            var CORE = LIBCORE, isString = CORE.string, isObject = CORE.object, applyConfig = applyRequestConfig, requestObject = new OPERATION();
-            applyConfig(DEFAULTS.clone(), requestObject);
-            if (isString(url)) {
-                requestObject.url = url;
-                if (isObject(config)) {
-                    applyConfig(config, requestObject);
-                }
-            } else if (isObject(url)) {
-                applyConfig(url, requestObject);
-            } else if (isForm(url)) {
-                applyRequestForm(url, requestObject);
-            }
-        }
-        function accessDefaults(name, value) {
-            var defaults = DEFAULTS;
-            if (arguments.length > 1) {
-                defaults.set(name, value);
-                return EXPORTS.chain;
-            }
-            return defaults.get(name);
-        }
-        module.exports = EXPORTS;
-        DRIVER.use("xhr");
-        DEFAULTS.set("method", "get");
-        DEFAULTS.set("headers", {
-            accept: "application/json,text/x-json,text/plain,*/*;q=0.8",
-            "conten-type": "application/json"
-        });
-    }, function(module, exports, __webpack_require__) {
-        (function(global) {
-            "use strict";
-            var LIBCORE = __webpack_require__(2), BASE = __webpack_require__(49), MIDDLEWARE = LIBCORE.middleware("libdom-http.driver.xhr"), STATE_UNSENT = 0, STATE_OPENED = 1, STATE_HEADERS_RECEIVED = 2, STATE_LOADING = 3, STATE_DONE = 4, BASE_PROTOTYPE = BASE.prototype;
+            var LIBCORE = __webpack_require__(2), BASE = __webpack_require__(48), MIDDLEWARE = LIBCORE.middleware("libdom-http.driver.xhr"), STATE_UNSENT = 0, STATE_OPENED = 1, STATE_HEADERS_RECEIVED = 2, STATE_LOADING = 3, STATE_DONE = 4, BASE_PROTOTYPE = BASE.prototype;
             function applyHeader(value, name) {
                 var me = this;
                 var c, l;
@@ -4214,16 +4234,15 @@
         }).call(exports, function() {
             return this;
         }());
-    }, function(module, exports, __webpack_require__) {
+    }, function(module, exports) {
         "use strict";
-        var LIBCORE = __webpack_require__(2);
         function bind(instance, method) {
             function bound() {
                 return method.apply(instance, arguments);
             }
             return bound;
         }
-        function Request() {
+        function Driver() {
             var me = this, list = this.bindMethods, len = list.length, bindMethod = bind;
             var name;
             for (;len--; ) {
@@ -4231,52 +4250,62 @@
                 me[name] = bindMethod(me, me[name]);
             }
         }
-        Request.prototype = {
+        Driver.prototype = {
             bindMethods: [ "setup", "transport", "process", "success", "error" ],
             aborted: false,
             request: null,
             response: null,
-            setup: function(operation) {
-                operation.process();
-                return operation;
+            constructor: Driver,
+            onSetup: function(request) {},
+            onTransport: function(request) {},
+            onCleanup: function(request) {},
+            onSuccess: function(request, status) {},
+            onError: function(status) {},
+            setup: function(request) {
+                var me = this;
+                me.request = request;
+                me.onSetup(request);
+                request.process();
+                me.response = request.response;
+                return request;
             },
-            transport: function(operation) {
-                return Promise.reject("No tranport() implementation.");
-            },
-            process: function(status) {
-                return status;
+            transport: function(request) {
+                this.onTransport(request);
+                request.begin();
+                return request;
             },
             success: function(status) {
-                var response = this.response;
-                if (response) {
-                    response.process();
+                var me = this, request = me.request, response = request && request.response;
+                if (request) {
+                    me.onSuccess(request, status);
+                    me.onCleanup(request);
+                    request.end();
+                } else {
+                    return me.error(status);
                 }
-                this.cleanup(status);
+                response.end();
+                delete me.request;
                 return response;
             },
             error: function(status) {
-                var response = this.response;
-                if (response) {
-                    response.process();
+                var me = this, request = me.request, response = request && request.response;
+                me.onError(status);
+                if (request) {
+                    me.onCleanup(request);
+                    request.end();
                 }
-                this.cleanup(status);
+                if (response) {
+                    response.end();
+                }
+                delete me.request;
                 return Promise.reject(status);
             },
-            abort: function() {
-                var me = this, request = me.request;
-                if (!me.aborted) {
-                    me.aborted = true;
-                    if (request && LIBCORE.method(request.resolve)) {
-                        request.resolve(0);
-                    }
-                }
-            },
-            cleanup: function() {}
+            abort: function() {}
         };
-        module.exports = Request;
+        module.exports = Driver;
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var LIBCORE = __webpack_require__(2), LIBDOM = __webpack_require__(13), DETECT = __webpack_require__(12), MIDDLEWARE = LIBCORE.middleware("libdom-http.driver.xhr"), register = MIDDLEWARE.register, BEFORE_REQUEST = "before:request", XHR = __webpack_require__(48), PROTOTYPE = XHR.prototype, BINDS = PROTOTYPE.bindMethods, BIND_LENGTH = BINDS.length, PROGRESS = DETECT.xhrbytes, features = 0;
+        var LIBCORE = __webpack_require__(2), LIBDOM = __webpack_require__(13), DETECT = __webpack_require__(12), MIDDLEWARE = LIBCORE.middleware("libdom-http.driver.xhr"), register = MIDDLEWARE.register, BEFORE_REQUEST = "before:request", XHR = __webpack_require__(47), PROTOTYPE = XHR.prototype, BINDS = PROTOTYPE.bindMethods, BIND_LENGTH = BINDS.length, PROGRESS = DETECT.xhrbytes, features = 0;
         function addTimeout(instance, xhr) {
             var timeout = instance.config.timeout;
             if (LIBCORE.number(timeout) && timeout > 10) {
@@ -4330,7 +4359,7 @@
     }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
-            var LIBCORE = __webpack_require__(2), LIBDOM = __webpack_require__(13), REQUEST_JSON = __webpack_require__(42);
+            var LIBCORE = __webpack_require__(2), LIBDOM = __webpack_require__(13), REQUEST_JSON = __webpack_require__(40);
             function eachArray(data, formData) {
                 var c = -1, l = data.length;
                 for (;l--; ) {
