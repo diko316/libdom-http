@@ -1,5 +1,7 @@
 'use strict';
 
+var LIBCORE = require("libcore");
+
 function bind(instance, method) {
     function bound() {
         return method.apply(instance, arguments);
@@ -67,9 +69,21 @@ Driver.prototype = {
     
     /* jshint unused:false */
     transport: function (request) {
+        var transportPromise;
+        
         this.onTransport(request);
-        request.begin();
-        return request;
+        
+        // it's a promise! :-)
+        transportPromise = request.transportPromise;
+        if (transportPromise &&
+            LIBCORE.method(transportPromise.then)) {
+            
+            request.begin();
+            
+            return transportPromise;
+        }
+        
+        return Promise.reject(610);
     },
     
     /* jshint unused:false */
@@ -78,26 +92,29 @@ Driver.prototype = {
             request = me.request,
             response = request && request.response;
         
-        
-        
-        // process response
-        if (request) {
-            me.onSuccess(request, status);
-            me.onCleanup(request);
-            request.end();
-        }
-        else {
+        // aborted request or errors
+        if (status === 0 ||
+            (status < 200 && status > 299) ||
+            !request || !response) {
             
             return me.error(status);
-        
         }
         
-        // end response
+        // process response
+        me.onSuccess(request, status);
+        
+        response.process();
+        
+        // end request and response
+        request.end();
         response.end();
+        request.transportPromise = null;
+        me.onCleanup(request, response);
         
         delete me.request;
         
         return response;
+        
     },
     
     error: function (status) {
@@ -109,6 +126,8 @@ Driver.prototype = {
         
         // process response
         if (request) {
+            request.transportPromise = null;
+            
             me.onCleanup(request);
             request.end();
         }

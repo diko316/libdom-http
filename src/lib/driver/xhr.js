@@ -43,13 +43,16 @@ Xhr.prototype = LIBCORE.instantiate(BASE, {
     
     onReadyStateChange: function () {
         var me = this,
-            xhr = me.xhr,
+            request = me.request,
+            xhr = request.xhrTransport,
             run = MIDDLEWARE.run,
-            operation = me.request,
-            args = [me, xhr];
+            args = [me, request, xhr],
+            resolve = request.resolve,
+            reject = request.reject;
         var status;
         
-        if (!me.aborted) {
+        if (!request.aborted && resolve && reject) {
+            
             run("before:readystatechange", args);
             
             switch (xhr.readyState) {
@@ -60,126 +63,108 @@ Xhr.prototype = LIBCORE.instantiate(BASE, {
             case STATE_DONE:
                 status = xhr.status;
                 if (status < 200 || status > 299) {
-                    operation.reject(status);
+                    reject(status);
                 }
                 else {
-                    operation.resolve(status);
+                    resolve(status);
                 }
             }
             run("after:statechange", args);
         }
-        me = xhr = operation = args = args[0] = args[1] = null;
+        me = xhr = request = args = args[0] = args[1] = args[2] = null;
     },
     
-    createTransportPromise: function(operation) {
+    createTransportPromise: function(request) {
         function bind(resolve, reject) {
-            operation.resolve = resolve;
-            operation.reject = reject;
+            var local = request;
+            local.resolve = resolve;
+            local.reject = reject;
+            local = null;
         }
         return new Promise(bind);
     },
     
-    setup: function (operation) {
+    onSetup: function (request) {
         var me = this,
             CORE = LIBCORE,
-            xhr = new (global.XMLHttpRequest)(),
-            args = [me, xhr],
-            run = MIDDLEWARE.run;
+            args = [me, request, xhr],
+            run = MIDDLEWARE.run,
+            xhr = new (global.XMLHttpRequest)();
         var headers;
+            
         
-        BASE_PROTOTYPE.setup.apply(me, arguments);
-        
-        me.xhr = xhr;
+        request.xhrTransport = xhr;
         
         run("after:setup", args);
-        
-        xhr.open(me.method.toUpperCase(), me.url, true);
+
         xhr.onreadystatechange = me.onReadyStateChange;
+        xhr.open(request.method.toUpperCase(), request.url, true);
+        
         
         run("before:request", args);
         
-        headers = operation.headers;
+        // apply headers
+        headers = request.headers;
         if (CORE.object(headers)) {
             CORE.each(headers, applyHeader, xhr);
         }
         
+        xhr = args = args[0] = args[1] = args[2] = null;
         
-        xhr = args = args[0] = args[1] = null;
-        return operation;
     },
     
-    transport: function (operation) {
+    onTransport: function (request) {
         var me = this,
-            xhr = me.xhr,
-            args = [me, xhr];
+            xhr = request.xhrTransport,
+            args = [me, request, xhr];
+       
+        request.transportPromise = me.createTransportPromise(request);
+        
+        xhr.send(request.body);
         
         MIDDLEWARE.run("after:request", args);
         
-        xhr.send(null);
+        xhr = args = args[0] = args[1] = args[2] = null;
         
-        xhr = args = args[0] = args[1] = null;
         
-        return me.createTransportPromise(operation);
     },
     
-    process: function (status) {
+    // process success
+    onSuccess: function (request) {
         var me = this,
-            xhr = me.xhr,
-            response = me.response,
-            args = [me, xhr],
-            run = MIDDLEWARE.run,
-            readyState = xhr.readyState;
+            xhr = request.xhrTransport,
+            response = request.response,
+            args = [me, request, xhr],
+            run = MIDDLEWARE.run;
         
-        if (me.aborted) {
-            run("after:abort", args);
-        }
+        response.status = xhr.status;
+        response.statusText = xhr.statusText;
+        response.addHeaders(xhr.getAllResponseHeaders());
+        response.body = xhr.responseText;
         
-        if (readyState >= STATE_OPENED) {
-            response.status = xhr.status;
-            response.statusText = xhr.statusText;
-            response.addHeaders(xhr.getAllResponseHeaders());
-        }
+        run("after:response", args);
         
-        if (readyState > STATE_LOADING) {
-            response.body = xhr.responseText;
-            run("after:response", args);
-        }
-        xhr = args = args[0] = args[1] = null;
+        xhr = args = args[0] = args[1] = args[2] = null;
         
-        return status;
     },
     
-    cleanup: function () {
+    onCleanup: function (request) {
         var me = this,
-            request = me.request,
-            xhr = me.xhr;
+            xhr = request.xhrTransport;
         var args;
         
         if (xhr) {
-            args = [me, xhr];
+            args = [me, request, xhr];
             MIDDLEWARE.run("after:cleanup", args);
-            me.xhr = args = args[0] = args[1] =
+            args = args[0] = args[1] = args[2] =
                     xhr = xhr.onreadystatechange = null;
         }
-        if (request) {
-            request.reject = null;
-            request.resolve = null;
-        }
-        delete me.xhr;
-    },
-    
-    abort: function () {
-        var me = this,
-            before = me.aborted,
-            result = BASE_PROTOTYPE.abort.apply(me, arguments),
-            xhr = me.xhr;
-        
-        if (!before && me.aborted && xhr) {
-            xhr.abort();
-        }
-        xhr = null;
-        return result;
+        request.xhrTransport = xhr = null;
+        request.transportPromise = null;
+        request.resolve = null;
+        request.reject = null;
     }
+
 });
 
 

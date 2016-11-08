@@ -28,7 +28,7 @@ function onCleanup(force) {
                 operation.destroy();
                 
             }
-            else if (operation.destroyed) {
+            else if (!operation.destroyed) {
                 created = operation.createdAt;
                 
                 if (!created || operation.processing) {
@@ -170,6 +170,7 @@ Operation.prototype = {
     destroy: function () {
         var me = this;
         if (!me.destroyed) {
+            me.destroyed = true;
             LIBCORE.clear(me);
         }
         return me;
@@ -182,6 +183,7 @@ Request.prototype = LIBCORE.instantiate(Operation, {
     method: 'get',
     constructor: Request,
     response: null,
+    aborted: false,
     process: function () {
         var me = this,
             result = TRANSFORMER.transform(me.header('content-type'),
@@ -222,6 +224,7 @@ Response.prototype = LIBCORE.instantiate(Operation, {
         if (headers) {
             me.addHeaders(headers);
         }
+
         me.data = result[1];
         
     }
