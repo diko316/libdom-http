@@ -14,18 +14,19 @@ var LIBCORE = require("libcore"),
     features = 0;
 
 // timeout
-function addTimeout(instance, xhr) {
-    var timeout = instance.config.timeout;
+function addTimeout(instance, request) {
+    var timeout = request.settings('timeout');
     
     if (LIBCORE.number(timeout) && timeout > 10) {
-        xhr.timeout = timeout;
+        request.xhrTransport.timeout = timeout;
     }
 }
 
 // withCredentials
-function addWithCredentials(instance, xhr) {
-    if (instance.config.withCredentials === true) {
-        xhr.withCredentials = true;
+function addWithCredentials(instance, request) {
+
+    if (request.settings('withCredentials') === true) {
+        request.xhrTransport.withCredentials = true;
     }
 }
 
@@ -42,22 +43,22 @@ function onProgress(event) {
 
 }
 
-function addProgressEvent(instance, xhr) {
-    var request = instance.request;
+function addProgressEvent(instance, request) {
+    var api = request.api;
     
-    instance.api.percentLoaded = 0;
+    api.percentLoaded = 0;
     
     if (request) {
         request.percentLoaded = 0;
     }
     
-    LIBDOM.on(xhr, 'progress', instance.onProgress);
+    LIBDOM.on(request.xhrTransport, 'progress', instance.onProgress);
 }
 
 // cleanup
-function cleanup(instance, xhr) {
+function cleanup(instance, request) {
     if (PROGRESS) {
-        LIBDOM.un(xhr, 'progress', instance.onProgress);
+        LIBDOM.un(request.xhrTransport, 'progress', instance.onProgress);
     }
 }
 

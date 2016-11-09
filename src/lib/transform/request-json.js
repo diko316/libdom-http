@@ -7,6 +7,9 @@ if (!json) {
     json = false;
 }
 
+function processForm() {
+    
+}
 
 function convert(data) {
     

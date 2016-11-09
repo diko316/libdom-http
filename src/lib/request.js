@@ -101,6 +101,8 @@ function applyRequestConfig(config, requestObject) {
     // add headers
     requestObject.addHeaders(config.headers);
     
+    requestObject.config = config;
+    
     data = null;
 }
 
@@ -116,7 +118,7 @@ function request(url, config) {
         applyConfig = applyRequestConfig,
         requestObject = new OPERATION(),
         PROMISE = Promise;
-    var driver;
+    var driver, promise;
     
     // apply defaults
     applyConfig(DEFAULTS.clone(), requestObject);
@@ -142,11 +144,16 @@ function request(url, config) {
         driver = sniffDriver(requestObject);
         if (driver) {
             driver = new (DRIVER.get(driver))(requestObject);
-            return PROMISE.resolve(requestObject).
-                    then(driver.setup).
-                    then(driver.transport).
-                    then(driver.success)
-                    ["catch"](driver.error);
+            requestObject.driver = driver;
+            promise =  PROMISE.resolve(requestObject).
+                            then(driver.setup).
+                            then(driver.transport).
+                            then(driver.success)
+                            ["catch"](driver.error);
+            
+            requestObject.api = promise;
+            requestObject = driver = null;
+            return promise;
         }
         
     }
@@ -173,7 +180,7 @@ module.exports = EXPORTS;
 // set default driver
 DRIVER.use('xhr');
 
-
+// set default method
 DEFAULTS.set('method', 'get');
 
 // add default header

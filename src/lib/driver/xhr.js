@@ -46,7 +46,7 @@ Xhr.prototype = LIBCORE.instantiate(BASE, {
             request = me.request,
             xhr = request.xhrTransport,
             run = MIDDLEWARE.run,
-            args = [me, request, xhr],
+            args = [me, request],
             resolve = request.resolve,
             reject = request.reject;
         var status;
@@ -71,7 +71,7 @@ Xhr.prototype = LIBCORE.instantiate(BASE, {
             }
             run("after:statechange", args);
         }
-        me = xhr = request = args = args[0] = args[1] = args[2] = null;
+        me = xhr = request = args = args[0] = args[1] = null;
     },
     
     createTransportPromise: function(request) {
@@ -87,7 +87,7 @@ Xhr.prototype = LIBCORE.instantiate(BASE, {
     onSetup: function (request) {
         var me = this,
             CORE = LIBCORE,
-            args = [me, request, xhr],
+            args = [me, request],
             run = MIDDLEWARE.run,
             xhr = new (global.XMLHttpRequest)();
         var headers;
@@ -109,14 +109,14 @@ Xhr.prototype = LIBCORE.instantiate(BASE, {
             CORE.each(headers, applyHeader, xhr);
         }
         
-        xhr = args = args[0] = args[1] = args[2] = null;
+        xhr = args = args[0] = args[1] = null;
         
     },
     
     onTransport: function (request) {
         var me = this,
             xhr = request.xhrTransport,
-            args = [me, request, xhr];
+            args = [me, request];
        
         request.transportPromise = me.createTransportPromise(request);
         
@@ -124,7 +124,7 @@ Xhr.prototype = LIBCORE.instantiate(BASE, {
         
         MIDDLEWARE.run("after:request", args);
         
-        xhr = args = args[0] = args[1] = args[2] = null;
+        xhr = args = args[0] = args[1] = null;
         
         
     },
@@ -134,7 +134,7 @@ Xhr.prototype = LIBCORE.instantiate(BASE, {
         var me = this,
             xhr = request.xhrTransport,
             response = request.response,
-            args = [me, request, xhr],
+            args = [me, request],
             run = MIDDLEWARE.run;
         
         response.status = xhr.status;
@@ -144,7 +144,7 @@ Xhr.prototype = LIBCORE.instantiate(BASE, {
         
         run("after:response", args);
         
-        xhr = args = args[0] = args[1] = args[2] = null;
+        xhr = args = args[0] = args[1] = null;
         
     },
     
@@ -154,9 +154,9 @@ Xhr.prototype = LIBCORE.instantiate(BASE, {
         var args;
         
         if (xhr) {
-            args = [me, request, xhr];
+            args = [me, request];
             MIDDLEWARE.run("after:cleanup", args);
-            args = args[0] = args[1] = args[2] =
+            args = args[0] = args[1] = 
                     xhr = xhr.onreadystatechange = null;
         }
         request.xhrTransport = xhr = null;
