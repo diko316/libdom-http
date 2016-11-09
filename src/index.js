@@ -14,18 +14,17 @@ if (DETECT.xhr) {
     DRIVER.register('xhr',
                 require("./lib/driver/xhr.js"));
     
-    //DRIVER.register('xhr2',
-    //            require("./lib/driver/xhr2.js"));
+    DRIVER.register('xhr2',
+                require("./lib/driver/xhr2.js"));
 }
 
-// !!apply later
 // transforms
-//if (DETECT.formdata) {
-//    // use html5 form data request
-//    register('multipart/form-data',
-//        false,
-//        require("./lib/transform/request-html5-form-data.js"));
-//}
+if (DETECT.formdata) {
+    // use html5 form data request
+    register('multipart/form-data',
+        false,
+        require("./lib/transform/request-html5-form-data.js"));
+}
 
 
 

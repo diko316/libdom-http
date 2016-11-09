@@ -184,6 +184,19 @@ Request.prototype = LIBCORE.instantiate(Operation, {
     constructor: Request,
     response: null,
     aborted: false,
+    timeout: 0,
+    config: null,
+    
+    settings: function (name) {
+        var config = this.config,
+            CORE = LIBCORE;
+            
+        if (CORE.object(config) && CORE.contains(config, name)) {
+            return config[name];
+        }
+        return void(0);
+    },
+    
     process: function () {
         var me = this,
             result = TRANSFORMER.transform(me.header('content-type'),

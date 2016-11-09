@@ -25,6 +25,10 @@
         var LIBCORE = __webpack_require__(2), DETECT = __webpack_require__(12), DRIVER = __webpack_require__(37), TRANSFORMER = __webpack_require__(38), REQUEST = __webpack_require__(44), rehash = LIBCORE.rehash, register = TRANSFORMER.register, EXPORTS = REQUEST.request;
         if (DETECT.xhr) {
             DRIVER.register("xhr", __webpack_require__(47));
+            DRIVER.register("xhr2", __webpack_require__(49));
+        }
+        if (DETECT.formdata) {
+            register("multipart/form-data", false, __webpack_require__(50));
         }
         rehash(EXPORTS, REQUEST, {
             request: "request"
@@ -3567,6 +3571,7 @@
             if (!json) {
                 json = false;
             }
+            function processForm() {}
             function convert(data) {
                 if (!json) {
                     throw new Error("JSON is not supported in this platform");
@@ -3790,6 +3795,7 @@
                 requestObject.driver = item;
             }
             requestObject.addHeaders(config.headers);
+            requestObject.config = config;
             data = null;
         }
         function isForm(object) {
@@ -3797,7 +3803,7 @@
         }
         function request(url, config) {
             var CORE = LIBCORE, isString = CORE.string, isObject = CORE.object, applyConfig = applyRequestConfig, requestObject = new OPERATION(), PROMISE = Promise;
-            var driver;
+            var driver, promise;
             applyConfig(DEFAULTS.clone(), requestObject);
             if (isString(url)) {
                 requestObject.url = url;
@@ -3813,7 +3819,11 @@
                 driver = sniffDriver(requestObject);
                 if (driver) {
                     driver = new (DRIVER.get(driver))(requestObject);
-                    return PROMISE.resolve(requestObject).then(driver.setup).then(driver.transport).then(driver.success)["catch"](driver.error);
+                    requestObject.driver = driver;
+                    promise = PROMISE.resolve(requestObject).then(driver.setup).then(driver.transport).then(driver.success)["catch"](driver.error);
+                    requestObject.api = promise;
+                    requestObject = driver = null;
+                    return promise;
                 }
             }
             return PROMISE.reject("Invalid HTTP request configuration.");
@@ -3966,6 +3976,15 @@
             constructor: Request,
             response: null,
             aborted: false,
+            timeout: 0,
+            config: null,
+            settings: function(name) {
+                var config = this.config, CORE = LIBCORE;
+                if (CORE.object(config) && CORE.contains(config, name)) {
+                    return config[name];
+                }
+                return void 0;
+            },
             process: function() {
                 var me = this, result = TRANSFORMER.transform(me.header("content-type"), false, me.data), headers = result[0], response = me.response;
                 if (headers) {
@@ -4135,7 +4154,7 @@
                 level: 1,
                 bindMethods: BASE_PROTOTYPE.bindMethods.concat([ "onReadyStateChange" ]),
                 onReadyStateChange: function() {
-                    var me = this, request = me.request, xhr = request.xhrTransport, run = MIDDLEWARE.run, args = [ me, request, xhr ], resolve = request.resolve, reject = request.reject;
+                    var me = this, request = me.request, xhr = request.xhrTransport, run = MIDDLEWARE.run, args = [ me, request ], resolve = request.resolve, reject = request.reject;
                     var status;
                     if (!request.aborted && resolve && reject) {
                         run("before:readystatechange", args);
@@ -4156,7 +4175,7 @@
                         }
                         run("after:statechange", args);
                     }
-                    me = xhr = request = args = args[0] = args[1] = args[2] = null;
+                    me = xhr = request = args = args[0] = args[1] = null;
                 },
                 createTransportPromise: function(request) {
                     function bind(resolve, reject) {
@@ -4168,7 +4187,7 @@
                     return new Promise(bind);
                 },
                 onSetup: function(request) {
-                    var me = this, CORE = LIBCORE, args = [ me, request, xhr ], run = MIDDLEWARE.run, xhr = new global.XMLHttpRequest();
+                    var me = this, CORE = LIBCORE, args = [ me, request ], run = MIDDLEWARE.run, xhr = new global.XMLHttpRequest();
                     var headers;
                     request.xhrTransport = xhr;
                     run("after:setup", args);
@@ -4179,31 +4198,31 @@
                     if (CORE.object(headers)) {
                         CORE.each(headers, applyHeader, xhr);
                     }
-                    xhr = args = args[0] = args[1] = args[2] = null;
+                    xhr = args = args[0] = args[1] = null;
                 },
                 onTransport: function(request) {
-                    var me = this, xhr = request.xhrTransport, args = [ me, request, xhr ];
+                    var me = this, xhr = request.xhrTransport, args = [ me, request ];
                     request.transportPromise = me.createTransportPromise(request);
                     xhr.send(request.body);
                     MIDDLEWARE.run("after:request", args);
-                    xhr = args = args[0] = args[1] = args[2] = null;
+                    xhr = args = args[0] = args[1] = null;
                 },
                 onSuccess: function(request) {
-                    var me = this, xhr = request.xhrTransport, response = request.response, args = [ me, request, xhr ], run = MIDDLEWARE.run;
+                    var me = this, xhr = request.xhrTransport, response = request.response, args = [ me, request ], run = MIDDLEWARE.run;
                     response.status = xhr.status;
                     response.statusText = xhr.statusText;
                     response.addHeaders(xhr.getAllResponseHeaders());
                     response.body = xhr.responseText;
                     run("after:response", args);
-                    xhr = args = args[0] = args[1] = args[2] = null;
+                    xhr = args = args[0] = args[1] = null;
                 },
                 onCleanup: function(request) {
                     var me = this, xhr = request.xhrTransport;
                     var args;
                     if (xhr) {
-                        args = [ me, request, xhr ];
+                        args = [ me, request ];
                         MIDDLEWARE.run("after:cleanup", args);
-                        args = args[0] = args[1] = args[2] = xhr = xhr.onreadystatechange = null;
+                        args = args[0] = args[1] = xhr = xhr.onreadystatechange = null;
                     }
                     request.xhrTransport = xhr = null;
                     request.transportPromise = null;
@@ -4292,6 +4311,172 @@
             abort: function() {}
         };
         module.exports = Driver;
+    }, function(module, exports, __webpack_require__) {
+        "use strict";
+        var LIBCORE = __webpack_require__(2), LIBDOM = __webpack_require__(13), DETECT = __webpack_require__(12), MIDDLEWARE = LIBCORE.middleware("libdom-http.driver.xhr"), register = MIDDLEWARE.register, BEFORE_REQUEST = "before:request", XHR = __webpack_require__(47), PROTOTYPE = XHR.prototype, BINDS = PROTOTYPE.bindMethods, BIND_LENGTH = BINDS.length, PROGRESS = DETECT.xhrbytes, features = 0;
+        function addTimeout(instance, request) {
+            var timeout = request.settings("timeout");
+            if (LIBCORE.number(timeout) && timeout > 10) {
+                request.xhrTransport.timeout = timeout;
+            }
+        }
+        function addWithCredentials(instance, request) {
+            if (request.settings("withCredentials") === true) {
+                request.xhrTransport.withCredentials = true;
+            }
+        }
+        function onProgress(event) {
+            var instance = this, request = instance.request;
+            if (request && event.lengthComputable) {
+                request.percentLoaded = instance.api.percentLoaded = event.loaded / event.total;
+            }
+        }
+        function addProgressEvent(instance, request) {
+            var api = request.api;
+            api.percentLoaded = 0;
+            if (request) {
+                request.percentLoaded = 0;
+            }
+            LIBDOM.on(request.xhrTransport, "progress", instance.onProgress);
+        }
+        function cleanup(instance, request) {
+            if (PROGRESS) {
+                LIBDOM.un(request.xhrTransport, "progress", instance.onProgress);
+            }
+        }
+        if (DETECT.xhrx) {
+            features++;
+            register(BEFORE_REQUEST, addWithCredentials);
+        }
+        if (PROGRESS) {
+            features++;
+            BINDS[BIND_LENGTH++] = "onProgress";
+            PROTOTYPE.onProgress = onProgress;
+            register(BEFORE_REQUEST, addProgressEvent);
+        }
+        if (DETECT.xhrtime) {
+            register(BEFORE_REQUEST, addTimeout);
+        }
+        if (features) {
+            if (features > 2) {
+                PROTOTYPE.level = 2;
+            }
+            register("cleanup", cleanup);
+        }
+        module.exports = XHR;
+    }, function(module, exports, __webpack_require__) {
+        (function(global) {
+            "use strict";
+            var LIBCORE = __webpack_require__(2), LIBDOM = __webpack_require__(13), REQUEST_JSON = __webpack_require__(40);
+            function eachArray(data, formData) {
+                var c = -1, l = data.length;
+                for (;l--; ) {
+                    add(data[++c], formData);
+                }
+                return formData;
+            }
+            function eachObject(data, formData) {
+                var contains = LIBCORE.contains;
+                var name;
+                for (name in data) {
+                    if (contains(data, name)) {
+                        add(data[name], formData, name);
+                    }
+                }
+                return formData;
+            }
+            function file(data) {
+                return data instanceof global.File;
+            }
+            function add(value, formData, name) {
+                var CORE = LIBCORE, isString = CORE.string, isFile = file, finite = isFinite, jsonify = REQUEST_JSON, hasName = isString(name), multiple = CORE.array(value);
+                var c, l, list, filename;
+                if (LIBDOM.is(value, 1)) {
+                    if (!hasName && !isString(name = value.name)) {
+                        value = null;
+                        return;
+                    }
+                    switch (value.type) {
+                      case "file":
+                        value = value.files;
+                        multiple = true;
+                        break;
+
+                      case "select":
+                        list = value.options;
+                        for (c = -1, l = list.length; l--; ) {
+                            value = list[++c];
+                            if (value.selected) {
+                                formData.append(name, value || "");
+                            }
+                        }
+                        list = value = null;
+                        return;
+
+                      case "checkbox":
+                      case "radio":
+                        if (!value.checked) {
+                            value = null;
+                            return;
+                        }
+
+                      default:
+                        value = value.value;
+                    }
+                }
+                if (hasName) {
+                    list = !multiple ? [ value ] : value;
+                    for (c = -1, l = list.length; l--; ) {
+                        value = list[++c];
+                        if (isFile(value)) {
+                            filename = value.name;
+                            if (isString(filename)) {
+                                formData.append(name, value, filename);
+                            } else {
+                                formData.append(name, value);
+                            }
+                            continue;
+                        }
+                        if (typeof value === "number") {
+                            value = finite(value) ? value.toString(10) : "";
+                        } else if (typeof value !== "string") {
+                            value = jsonify(value);
+                            value = value && value[1];
+                            if (!isString(value) || value === "null") {
+                                value = "";
+                            }
+                        }
+                        formData.append(name, value);
+                    }
+                }
+                list = value = null;
+            }
+            function convert(data) {
+                var CORE = LIBCORE, method = null;
+                var form;
+                if (CORE.object(data)) {
+                    method = eachObject;
+                } else if (CORE.array(data)) {
+                    method = eachArray;
+                } else if (LIBDOM.is(data, 1)) {
+                    if (data.tagName.toUpperCase() === "FORM") {
+                        method = eachArray;
+                        data = data.elements;
+                    } else if (data.form) {
+                        method = eachArray;
+                        data = [ data ];
+                    }
+                }
+                form = null;
+                if (method) {
+                    return [ null, method(data, new global.FormData()) ];
+                }
+                return null;
+            }
+            module.exports = convert;
+        }).call(exports, function() {
+            return this;
+        }());
     } ]);
 });
 

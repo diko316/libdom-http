@@ -45,43 +45,6 @@ function get(type) {
     return DRIVERS.get(type);
 }
 
-//function request(type, config) {
-//    var operation = new OPERATION(),
-//        Driver = DRIVERS.get(type),
-//        driver = new Driver();
-//    var promise;
-//    // setup
-//    driver.request = operation;
-//    driver.url = config.url;
-//    driver.method = config.method;
-//    driver.config = config;
-//    
-//    operation.addHeaders(config.headers);
-//    
-//    operation.data = config.params || config.data || config.body;
-//    
-//    // workflow
-//    promise = Promise.resolve(operation).
-//            then(driver.setup).
-//            then(driver.transport).
-//            then(function (data) {
-//                var response = new RESPONSE(operation);
-//                driver.response = response;
-//                response.request = driver.request;
-//                response = null;
-//                return data;
-//            }).
-//            then(driver.process).
-//            then(driver.success)
-//            ["catch"](driver.error);
-//            
-//    driver.api = promise;
-//    
-//    return promise;
-//}
-
-
-
 
 
 module.exports = EXPORTS;
