@@ -34,11 +34,17 @@ function addWithCredentials(instance, request) {
 function onProgress(event) {
     /* jshint validthis: true */
     var instance = this,
-        request = instance.request;
+        request = instance.request,
+        api = request.api;
+    var loaded;
     
     if (request && event.lengthComputable) {
-        request.percentLoaded =
-            instance.api.percentLoaded = event.loaded / event.total;
+        loaded = event.loaded / event.total;
+        
+        request.percentLoaded = loaded;
+        if (api) {
+            api.percentLoaded = loaded;
+        }
     }
 
 }
