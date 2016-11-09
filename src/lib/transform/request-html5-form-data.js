@@ -1,7 +1,7 @@
 'use strict';
 
 var LIBCORE = require("libcore"),
-    LIBDOM = require("libdom"),
+    HELP = require("./helper.js"),
     REQUEST_JSON = require("./request-json.js");
 
 function eachArray(data, formData) {
@@ -41,7 +41,7 @@ function add(value, formData, name) {
         multiple = CORE.array(value);
     var c, l, list, filename;
     
-    if (LIBDOM.is(value, 1)) {
+    if (HELP.field(value)) {
         if (!hasName && !isString(name = value.name)) {
             value = null;
             return;
@@ -112,6 +112,7 @@ function add(value, formData, name) {
 
 function convert(data) {
     var CORE = LIBCORE,
+        H = HELP,
         method = null;
     var form;
     
@@ -121,15 +122,13 @@ function convert(data) {
     else if (CORE.array(data)) {
         method = eachArray;
     }
-    else if (LIBDOM.is(data, 1)) {
-        if (data.tagName.toUpperCase() === 'FORM') {
-            method = eachArray;
-            data = data.elements;
-        }
-        else if (data.form) {
-            method = eachArray;
-            data = [data];
-        }
+    else if (H.form(data)) {
+        method = eachArray;
+        data = data.elements;
+    }
+    else if (H.field(data)) {
+        method = eachArray;
+        data = [data];
     }
     
     form = null;
