@@ -5,7 +5,7 @@ var http = global.main;
 console.log("------------------ xhr");
 
 
-main.request("data.json").
+http.request("data.json").
     then(function (data) {
         console.log("success! ", data);
     }, function (error) {
@@ -18,11 +18,17 @@ var dom = require("libdom");
 
 dom.add(global.document.body, {
     tag: 'form',
-    onsubmit: function (event, form) {
+    action: 'data.json',
+    method: 'post',
+    enctype: 'multipart/form-data',
+    onsubmit: function (event) {
         event.preventDefault();
+
         // test submit form
+        http.request("data.json", event.target);
         
     },
+    
     childNodes: [{
         childNodes: [{
             tag: 'label',
@@ -45,6 +51,20 @@ dom.add(global.document.body, {
             type: 'file'
         }]
     },
+    {
+        
+        childNodes: [{
+            tag: 'label',
+            text: 'another'
+        },
+        {
+            tag: 'input',
+            name: 'another-text-input',
+            type: 'text'
+        }]
+        
+    },
+    
     {
         childNodes: [{
             tag: 'button',

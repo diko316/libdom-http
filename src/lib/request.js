@@ -4,6 +4,7 @@ var LIBCORE = require("libcore"),
     LIBDOM = require("libdom"),
     DRIVER = require("./driver.js"),
     OPERATION = require("./operation.js"),
+    HELP = require("./transform/helper.js"),
     DEFAULTS = LIBCORE.createRegistry(),
     METHODS = ['get','post','put','patch','delete','options'],
     EXPORTS = {
@@ -47,6 +48,7 @@ function applyRequestForm(form, requestObject) {
     // use this as request header
     item = form.enctype || form.encoding;
     if (isString(item)) {
+        console.log("used content type: ", item, ' enctype ', form.enctype, ' encoding: ', form.encoding);
         requestObject.addHeaders('Content-type: ' + item);
     }
     
@@ -66,6 +68,7 @@ function applyRequestForm(form, requestObject) {
     }
     
     requestObject.data = form;
+    console.log(requestObject);
     
 }
 
@@ -76,7 +79,7 @@ function applyRequestConfig(config, requestObject) {
     var item;
     
     // apply defaults
-    if (isForm(data)) {
+    if (HELP.form(data)) {
         applyRequestForm(data, requestObject);
     }
     else if (data !== null || data !== void(0)) {
@@ -106,13 +109,10 @@ function applyRequestConfig(config, requestObject) {
     data = null;
 }
 
-function isForm(object) {
-    return LIBDOM.is(object, 1) && object.tagName.toUpperCase() === 'FORM';
-}
-
 
 function request(url, config) {
     var CORE = LIBCORE,
+        H = HELP,
         isString = CORE.string,
         isObject = CORE.object,
         applyConfig = applyRequestConfig,
@@ -125,18 +125,24 @@ function request(url, config) {
     
     // process config
     if (isString(url)) {
-        requestObject.url = url;
         
         if (isObject(config)) {
             applyConfig(config, requestObject);
         }
+        else if (H.form(config)) {
+            applyRequestForm(config, requestObject);
+        }
+        
+        requestObject.url = url;
+        
     }
     else if (isObject(url)) {
         applyConfig(url, requestObject);
     }
-    else if (isForm(url)) {
+    else if (H.form(url)) {
         applyRequestForm(url, requestObject);
     }
+    
     
     // validate
     if (isString(requestObject.url)) {
@@ -186,7 +192,7 @@ DEFAULTS.set('method', 'get');
 // add default header
 DEFAULTS.set('headers', {
     'accept': 'application/json,text/x-json,text/plain,*/*;q=0.8',
-    'conten-type': 'application/json'
+    'content-type': 'application/json'
 });
 
 

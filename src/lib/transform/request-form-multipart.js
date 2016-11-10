@@ -2,6 +2,7 @@
 
 var LIBDOM = require("libdom"),
     LIBCORE = require("libcore"),
+    HELP = require("./helper.js"),
     browser = LIBDOM.env.browser,
     URL_ENCODE = require("./request-form-urlencoded.js"),
     EOL = "\r\n",
@@ -46,11 +47,13 @@ function encodePairs(output) {
             eol
         ];
         
-        body[len++] = contentHeader.join(eol) + value;
+        body[len++] = contentHeader.join(eol) + value + eol;
     }
-    
+    console.log('headers: ', headers.join(eol));
+    console.log('body: ', body.join(boundary));
     return [headers.join(eol),
-            body.join(eol + boundary + eol)];
+            body.join(boundary + eol) + 
+            boundary + '--' + eol];
 }
 
 
@@ -60,8 +63,7 @@ function convert(data) {
         urlencode = URL_ENCODE;
     
     // process form
-    if (browser && LIBDOM.is(data, 1) &&
-        data.tagName.toUpperCase() === 'FORM') {
+    if (HELP.form(data)) {
         return encodePairs(urlencode.fromForm(data));
     }
     

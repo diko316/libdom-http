@@ -22,14 +22,12 @@
         module.exports = __webpack_require__(1);
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var LIBCORE = __webpack_require__(2), DETECT = __webpack_require__(13), DRIVER = __webpack_require__(38), TRANSFORMER = __webpack_require__(39), REQUEST = __webpack_require__(45), rehash = LIBCORE.rehash, register = TRANSFORMER.register, EXPORTS = REQUEST.request;
+        var LIBCORE = __webpack_require__(2), DETECT = __webpack_require__(13), DRIVER = __webpack_require__(38), TRANSFORMER = __webpack_require__(39), REQUEST = __webpack_require__(46), rehash = LIBCORE.rehash, register = TRANSFORMER.register, EXPORTS = REQUEST.request;
         if (DETECT.xhr) {
-            DRIVER.register("xhr", __webpack_require__(48));
-            DRIVER.register("xhr2", __webpack_require__(50));
+            DRIVER.register("xhr", __webpack_require__(49));
+            DRIVER.register("xhr2", __webpack_require__(51));
         }
-        if (DETECT.formdata) {
-            register("multipart/form-data", false, __webpack_require__(51));
-        }
+        if (DETECT.formdata) {}
         rehash(EXPORTS, REQUEST, {
             request: "request"
         });
@@ -3658,9 +3656,9 @@
         module.exports = EXPORTS;
         item = __webpack_require__(41);
         register("application/json", false, item).register("text/x-json", false, item);
-        item = __webpack_require__(42);
+        item = __webpack_require__(43);
         register("application/json", true, item).register("text/x-json", true, item);
-        register("application/x-www-form-urlencoded", false, __webpack_require__(43)).register("multipart/form-data", false, __webpack_require__(44));
+        register("application/x-www-form-urlencoded", false, __webpack_require__(44)).register("multipart/form-data", false, __webpack_require__(45));
     }, function(module, exports, __webpack_require__) {
         "use strict";
         var LIBCORE = __webpack_require__(2), MIME_TYPE_RE = /^([a-z0-9\-\_]+)\/([a-z\-\_0-9]+)(([ \s\t]*\;([^\;]+))*)$/, MIME_TYPE_PARAMS_RE = /^[ \t\s]*([a-z0-9\-\_]+)\=(\"([^\"]+)\"|[a-z0-9\-\_]+)[ \t\s]*$/, QUOTED_RE = /^\"[^\"]+\"/, EXPORTS = {
@@ -3704,14 +3702,19 @@
     }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
-            var LIBCORE = __webpack_require__(2), json = global.JSON;
+            var LIBCORE = __webpack_require__(2), HELP = __webpack_require__(42), json = global.JSON;
             if (!json) {
                 json = false;
             }
-            function processForm() {}
+            function eachFields(field, name, dimension) {}
             function convert(data) {
+                var H = HELP;
+                var raw;
                 if (!json) {
                     throw new Error("JSON is not supported in this platform");
+                } else if (H.form(data)) {
+                    raw = data;
+                    H.eachFields(raw, eachFields, data = {});
                 } else if (!LIBCORE.object(data)) {
                     return [ null, "" ];
                 }
@@ -3726,6 +3729,60 @@
         }).call(exports, function() {
             return this;
         }());
+    }, function(module, exports, __webpack_require__) {
+        "use strict";
+        var LIBDOM = __webpack_require__(14), LIBCORE = __webpack_require__(2), FIELD_NAME_RE = /^([a-z0-9\-\_])((\[[^\[\]]*\])*)$/i, FIELD_NAME_DIMENSION_RE = /\[[^\[\]]*\]/g;
+        function isForm(form) {
+            return LIBDOM.is(form, 1) && form.tagName.toUpperCase() === "FORM";
+        }
+        function isField(field) {
+            if (LIBDOM.is(field, 1)) {
+                switch (field.tagName.toUpperCase()) {
+                  case "INPUT":
+                  case "TEXTAREA":
+                  case "BUTTON":
+                  case "SELECT":
+                  case "OUTPUT":
+                    return true;
+                }
+            }
+            return false;
+        }
+        function parseFieldName(name) {
+            var match, base, array, index, c, l;
+            if (LIBCORE.string(name)) {
+                match = name.match(FIELD_NAME_RE);
+                if (match) {
+                    base = match[1];
+                    array = match[2] && name.match(FIELD_NAME_DIMENSION_RE);
+                    if (array) {
+                        for (c = -1, l = array.length; l--; ) {
+                            index = array[++c];
+                            array[c] = index.substring(1, index.length - 1);
+                        }
+                    }
+                    return [ base, array || null ];
+                }
+            }
+            return null;
+        }
+        function eachFields(form, callback, scope) {
+            var parse = parseFieldName, elements = form.elements, l = elements.length, c = -1;
+            var field, name;
+            scope = scope || null;
+            for (;l--; ) {
+                field = elements[++c];
+                name = parse(field.name);
+                if (name) {
+                    callback.call(scope, field, name[0], name[1]);
+                }
+            }
+        }
+        module.exports = {
+            eachFields: eachFields,
+            form: isForm,
+            field: isField
+        };
     }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
@@ -3831,7 +3888,7 @@
         convert.fromObject = fromObject;
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var LIBDOM = __webpack_require__(14), LIBCORE = __webpack_require__(2), browser = LIBDOM.env.browser, URL_ENCODE = __webpack_require__(43), EOL = "\r\n", BOUNDARY_LENGTH = 48;
+        var LIBDOM = __webpack_require__(14), LIBCORE = __webpack_require__(2), HELP = __webpack_require__(42), browser = LIBDOM.env.browser, URL_ENCODE = __webpack_require__(44), EOL = "\r\n", BOUNDARY_LENGTH = 48;
         function createBoundary() {
             var ender = Math.random().toString().substr(2), output = [], len = 0, total = BOUNDARY_LENGTH - ender.length;
             for (;total--; ) {
@@ -3849,13 +3906,15 @@
                 name = value.substring(0, index);
                 value = value.substring(index + 1, value.length);
                 contentHeader = [ 'Content-Disposition: form-data; name="' + name + '"', "Content-type: application/octet-stream", eol ];
-                body[len++] = contentHeader.join(eol) + value;
+                body[len++] = contentHeader.join(eol) + value + eol;
             }
-            return [ headers.join(eol), body.join(eol + boundary + eol) ];
+            console.log("headers: ", headers.join(eol));
+            console.log("body: ", body.join(boundary));
+            return [ headers.join(eol), body.join(boundary + eol) + boundary + "--" + eol ];
         }
         function convert(data) {
             var CORE = LIBCORE, urlencode = URL_ENCODE;
-            if (browser && LIBDOM.is(data, 1) && data.tagName.toUpperCase() === "FORM") {
+            if (HELP.form(data)) {
                 return encodePairs(urlencode.fromForm(data));
             }
             if (CORE.object(data)) {
@@ -3868,7 +3927,7 @@
         module.exports = convert;
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var LIBCORE = __webpack_require__(2), LIBDOM = __webpack_require__(14), DRIVER = __webpack_require__(38), OPERATION = __webpack_require__(46), DEFAULTS = LIBCORE.createRegistry(), METHODS = [ "get", "post", "put", "patch", "delete", "options" ], EXPORTS = {
+        var LIBCORE = __webpack_require__(2), LIBDOM = __webpack_require__(14), DRIVER = __webpack_require__(38), OPERATION = __webpack_require__(47), HELP = __webpack_require__(42), DEFAULTS = LIBCORE.createRegistry(), METHODS = [ "get", "post", "put", "patch", "delete", "options" ], EXPORTS = {
             request: request,
             defaults: accessDefaults
         };
@@ -3895,6 +3954,7 @@
             var item;
             item = form.enctype || form.encoding;
             if (isString(item)) {
+                console.log("used content type: ", item, " enctype ", form.enctype, " encoding: ", form.encoding);
                 requestObject.addHeaders("Content-type: " + item);
             }
             item = form.action;
@@ -3910,11 +3970,12 @@
                 requestObject.driver = item;
             }
             requestObject.data = form;
+            console.log(requestObject);
         }
         function applyRequestConfig(config, requestObject) {
             var CORE = LIBCORE, isString = CORE.string, data = config.form || config.data || config.params || config.body;
             var item;
-            if (isForm(data)) {
+            if (HELP.form(data)) {
                 applyRequestForm(data, requestObject);
             } else if (data !== null || data !== void 0) {
                 requestObject.data = data;
@@ -3935,21 +3996,20 @@
             requestObject.config = config;
             data = null;
         }
-        function isForm(object) {
-            return LIBDOM.is(object, 1) && object.tagName.toUpperCase() === "FORM";
-        }
         function request(url, config) {
-            var CORE = LIBCORE, isString = CORE.string, isObject = CORE.object, applyConfig = applyRequestConfig, requestObject = new OPERATION(), PROMISE = Promise;
+            var CORE = LIBCORE, H = HELP, isString = CORE.string, isObject = CORE.object, applyConfig = applyRequestConfig, requestObject = new OPERATION(), PROMISE = Promise;
             var driver, promise;
             applyConfig(DEFAULTS.clone(), requestObject);
             if (isString(url)) {
-                requestObject.url = url;
                 if (isObject(config)) {
                     applyConfig(config, requestObject);
+                } else if (H.form(config)) {
+                    applyRequestForm(config, requestObject);
                 }
+                requestObject.url = url;
             } else if (isObject(url)) {
                 applyConfig(url, requestObject);
-            } else if (isForm(url)) {
+            } else if (H.form(url)) {
                 applyRequestForm(url, requestObject);
             }
             if (isString(requestObject.url)) {
@@ -3978,11 +4038,11 @@
         DEFAULTS.set("method", "get");
         DEFAULTS.set("headers", {
             accept: "application/json,text/x-json,text/plain,*/*;q=0.8",
-            "conten-type": "application/json"
+            "content-type": "application/json"
         });
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var LIBCORE = __webpack_require__(2), LIBDOM = __webpack_require__(14), HEADER = __webpack_require__(47), TRANSFORMER = __webpack_require__(39), CLEANING = false, CLEAN_INTERVAL = 1e3, TTL = 1e4, RUNNING = false, OPERATIONS = [];
+        var LIBCORE = __webpack_require__(2), LIBDOM = __webpack_require__(14), HEADER = __webpack_require__(48), TRANSFORMER = __webpack_require__(39), CLEANING = false, CLEAN_INTERVAL = 1e3, TTL = 1e4, RUNNING = false, OPERATIONS = [];
         function onCleanup(force) {
             var list = OPERATIONS, id = RUNNING;
             var len, operation, now, ttl, created;
@@ -4270,7 +4330,7 @@
     }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
-            var LIBCORE = __webpack_require__(2), BASE = __webpack_require__(49), MIDDLEWARE = LIBCORE.middleware("libdom-http.driver.xhr"), STATE_UNSENT = 0, STATE_OPENED = 1, STATE_HEADERS_RECEIVED = 2, STATE_LOADING = 3, STATE_DONE = 4, BASE_PROTOTYPE = BASE.prototype;
+            var LIBCORE = __webpack_require__(2), BASE = __webpack_require__(50), MIDDLEWARE = LIBCORE.middleware("libdom-http.driver.xhr"), STATE_UNSENT = 0, STATE_OPENED = 1, STATE_HEADERS_RECEIVED = 2, STATE_LOADING = 3, STATE_DONE = 4, BASE_PROTOTYPE = BASE.prototype;
             function applyHeader(value, name) {
                 var me = this;
                 var c, l;
@@ -4450,7 +4510,7 @@
         module.exports = Driver;
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var LIBCORE = __webpack_require__(2), LIBDOM = __webpack_require__(14), DETECT = __webpack_require__(13), MIDDLEWARE = LIBCORE.middleware("libdom-http.driver.xhr"), register = MIDDLEWARE.register, BEFORE_REQUEST = "before:request", XHR = __webpack_require__(48), PROTOTYPE = XHR.prototype, BINDS = PROTOTYPE.bindMethods, BIND_LENGTH = BINDS.length, PROGRESS = DETECT.xhrbytes, features = 0;
+        var LIBCORE = __webpack_require__(2), LIBDOM = __webpack_require__(14), DETECT = __webpack_require__(13), MIDDLEWARE = LIBCORE.middleware("libdom-http.driver.xhr"), register = MIDDLEWARE.register, BEFORE_REQUEST = "before:request", XHR = __webpack_require__(49), PROTOTYPE = XHR.prototype, BINDS = PROTOTYPE.bindMethods, BIND_LENGTH = BINDS.length, PROGRESS = DETECT.xhrbytes, features = 0;
         function addTimeout(instance, request) {
             var timeout = request.settings("timeout");
             if (LIBCORE.number(timeout) && timeout > 10) {
@@ -4506,171 +4566,6 @@
             register("cleanup", cleanup);
         }
         module.exports = XHR;
-    }, function(module, exports, __webpack_require__) {
-        (function(global) {
-            "use strict";
-            var LIBCORE = __webpack_require__(2), HELP = __webpack_require__(52), REQUEST_JSON = __webpack_require__(41);
-            function eachArray(data, formData) {
-                var c = -1, l = data.length;
-                for (;l--; ) {
-                    add(data[++c], formData);
-                }
-                return formData;
-            }
-            function eachObject(data, formData) {
-                var contains = LIBCORE.contains;
-                var name;
-                for (name in data) {
-                    if (contains(data, name)) {
-                        add(data[name], formData, name);
-                    }
-                }
-                return formData;
-            }
-            function file(data) {
-                return data instanceof global.File;
-            }
-            function add(value, formData, name) {
-                var CORE = LIBCORE, isString = CORE.string, isFile = file, finite = isFinite, jsonify = REQUEST_JSON, hasName = isString(name), multiple = CORE.array(value);
-                var c, l, list, filename;
-                if (HELP.field(value)) {
-                    if (!hasName && !isString(name = value.name)) {
-                        value = null;
-                        return;
-                    }
-                    switch (value.type) {
-                      case "file":
-                        value = value.files;
-                        multiple = true;
-                        break;
-
-                      case "select":
-                        list = value.options;
-                        for (c = -1, l = list.length; l--; ) {
-                            value = list[++c];
-                            if (value.selected) {
-                                formData.append(name, value || "");
-                            }
-                        }
-                        list = value = null;
-                        return;
-
-                      case "checkbox":
-                      case "radio":
-                        if (!value.checked) {
-                            value = null;
-                            return;
-                        }
-
-                      default:
-                        value = value.value;
-                    }
-                }
-                if (hasName) {
-                    list = !multiple ? [ value ] : value;
-                    for (c = -1, l = list.length; l--; ) {
-                        value = list[++c];
-                        if (isFile(value)) {
-                            filename = value.name;
-                            if (isString(filename)) {
-                                formData.append(name, value, filename);
-                            } else {
-                                formData.append(name, value);
-                            }
-                            continue;
-                        }
-                        if (typeof value === "number") {
-                            value = finite(value) ? value.toString(10) : "";
-                        } else if (typeof value !== "string") {
-                            value = jsonify(value);
-                            value = value && value[1];
-                            if (!isString(value) || value === "null") {
-                                value = "";
-                            }
-                        }
-                        formData.append(name, value);
-                    }
-                }
-                list = value = null;
-            }
-            function convert(data) {
-                var CORE = LIBCORE, H = HELP, method = null;
-                var form;
-                if (CORE.object(data)) {
-                    method = eachObject;
-                } else if (CORE.array(data)) {
-                    method = eachArray;
-                } else if (H.form(data)) {
-                    method = eachArray;
-                    data = data.elements;
-                } else if (H.field(data)) {
-                    method = eachArray;
-                    data = [ data ];
-                }
-                form = null;
-                if (method) {
-                    return [ null, method(data, new global.FormData()) ];
-                }
-                return null;
-            }
-            module.exports = convert;
-        }).call(exports, function() {
-            return this;
-        }());
-    }, function(module, exports, __webpack_require__) {
-        "use strict";
-        var LIBDOM = __webpack_require__(14), LIBCORE = __webpack_require__(2), FIELD_NAME_RE = /^([a-z0-9\-\_])((\[[^\[\]]*\])*)$/i, FIELD_NAME_DIMENSION_RE = /\[[^\[\]]*\]/g;
-        function isForm(form) {
-            return LIBDOM.is(form, 1) && form.tagName.toUpperCase() === "FORM";
-        }
-        function isField(field) {
-            if (LIBDOM.is(field, 1)) {
-                switch (field.tagName.toUpperCase()) {
-                  case "INPUT":
-                  case "TEXTAREA":
-                  case "BUTTON":
-                  case "SELECT":
-                  case "OUTPUT":
-                    return true;
-                }
-            }
-            return false;
-        }
-        function parseFieldName(name) {
-            var match, base, array, index, c, l;
-            if (LIBCORE.string(name)) {
-                match = name.match(FIELD_NAME_RE);
-                if (match) {
-                    base = match[1];
-                    array = match[2] && name.match(FIELD_NAME_DIMENSION_RE);
-                    if (array) {
-                        for (c = -1, l = array.length; l--; ) {
-                            index = array[++c];
-                            array[c] = index.substring(1, index.length - 1);
-                        }
-                    }
-                    return [ base, array || null ];
-                }
-            }
-            return null;
-        }
-        function eachFields(form, callback, scope) {
-            var parse = parseFieldName, elements = form.elements, l = elements.length, c = -1;
-            var field, name;
-            scope = scope || null;
-            for (;l--; ) {
-                field = elements[++c];
-                name = parse(field.name);
-                if (name) {
-                    callback.call(scope, field, name[0], name[1]);
-                }
-            }
-        }
-        module.exports = {
-            eachFields: eachFields,
-            form: isForm,
-            field: isField
-        };
     } ]);
 });
 

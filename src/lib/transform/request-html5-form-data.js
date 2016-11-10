@@ -28,7 +28,7 @@ function eachObject(data, formData) {
 
 
 function file(data) {
-    return data instanceof global.File;
+    return data instanceof global.Blob;
 }
 
 function add(value, formData, name) {
@@ -46,6 +46,7 @@ function add(value, formData, name) {
             value = null;
             return;
         }
+        hasName = true;
         
         switch (value.type) {
         case 'file':
@@ -123,8 +124,10 @@ function convert(data) {
         method = eachArray;
     }
     else if (H.form(data)) {
+        
         method = eachArray;
         data = data.elements;
+        
     }
     else if (H.field(data)) {
         method = eachArray;
