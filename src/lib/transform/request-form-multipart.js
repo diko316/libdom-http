@@ -1,10 +1,6 @@
 'use strict';
 
-var LIBDOM = require("libdom"),
-    LIBCORE = require("libcore"),
-    HELP = require("./helper.js"),
-    browser = LIBDOM.env.browser,
-    URL_ENCODE = require("./request-form-urlencoded.js"),
+var HELP = require("./helper.js"),
     EOL = "\r\n",
     BOUNDARY_LENGTH = 48;
 
@@ -21,60 +17,63 @@ function createBoundary() {
     return output.join('');
 }
 
-function encodePairs(output) {
-    var boundary = createBoundary(),
-        eol = EOL,
-        headers = [
-            'Content-Type: multipart/form-data; charset=utf-8;',
-            '    boundary=' + boundary
-        ],
-        c = -1,
-        l = output.length,
-        len = 0,
-        body = [];
-    var contentHeader, name, value, index;
+function createValue(operation, name, value, type, fieldType) {
+    var eol = EOL,
+        items = operation.returnValue;
     
-    // create body
-    for (; l--;) {
-        // break down
-        value = output[++c];
-        index = value.indexOf('=');
-        name = value.substring(0, index);
-        value = value.substring(index + 1, value.length);
-        contentHeader = [
-            'Content-Disposition: form-data; name="' + name + '"',
-            'Content-type: application/octet-stream',
-            eol
-        ];
-        
-        body[len++] = contentHeader.join(eol) + value + eol;
+    if (type === 'field') {
+        // i can't support file upload
+        if (fieldType === "file") {
+            return;
+        }
+        value = value.value;
     }
-    console.log('headers: ', headers.join(eol));
-    console.log('body: ', body.join(boundary));
-    return [headers.join(eol),
-            body.join(boundary + eol) + 
-            boundary + '--' + eol];
+    
+    if (typeof value === 'number') {
+        value = isFinite(value) ? value.toString(10) : '';
+    }
+    else if (typeof value !== 'string') {
+        value = HELP.jsonify(value);
+    }
+    
+    // encode
+    items[items.length] = ([
+                'Content-Disposition: form-data; name="' + name + '"',
+                'Content-type: application/octet-stream',
+                eol,
+                value
+            ]).join(eol);
+    
 }
 
-
-
 function convert(data) {
-    var CORE = LIBCORE,
-        urlencode = URL_ENCODE;
-    
-    // process form
-    if (HELP.form(data)) {
-        return encodePairs(urlencode.fromForm(data));
+    var eol = EOL,
+        boundary = createBoundary(),
+        body = HELP.each(data, createValue, {
+                returnValue: []
+            });
+    // start boundary
+    if (!body.length) {
+        body.splice(0, 0, boundary);
     }
     
-    if (CORE.object(data)) {
-        return encodePairs(urlencode.fromObject(data));
-    }
-    else if (CORE.string(data)) {
-        return [null, data];
-    }
     
-    return null;
+    return [
+        // create header
+        ([
+            'Content-Type: multipart/form-data; charset=utf-8;',
+            '    boundary=' + boundary
+        ]).join(eol),
+        
+        // start boundary
+        boundary + eol +
+        
+        body.join(eol + boundary + eol) +
+        
+        // end boundary
+        boundary + '--' + eol
+    ];
+    
 }
 
 

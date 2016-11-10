@@ -21,9 +21,9 @@ if (DETECT.xhr) {
 // transforms
 if (DETECT.formdata) {
     // use html5 form data request
-    //register('multipart/form-data',
-    //    false,
-    //    require("./lib/transform/request-html5-form-data.js"));
+    register('multipart/form-data',
+        false,
+        require("./lib/transform/request-html5-form-data.js"));
 }
 
 

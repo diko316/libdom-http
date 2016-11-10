@@ -1,11 +1,16 @@
 'use strict';
 
 var http = global.main;
-
+var request = {
+        method: 'post',
+        params: {
+            name: "diko"
+        }
+    };
 console.log("------------------ xhr");
 
 
-http.request("data.json").
+http.request("data.json", request).
     then(function (data) {
         console.log("success! ", data);
     }, function (error) {
@@ -49,6 +54,63 @@ dom.add(global.document.body, {
             tag: 'input',
             name: 'file-upload',
             type: 'file'
+        }]
+    },
+    {
+        
+        childNodes: [{
+            tag: 'label',
+            text: 'another'
+        },
+        {
+            tag: 'input',
+            name: 'another-text-input',
+            type: 'text'
+        }]
+        
+    },
+    
+    {
+        childNodes: [{
+            tag: 'button',
+            type: 'submit',
+            text: 'submit'
+        }]
+    }]
+    
+});
+
+
+
+
+
+
+
+
+
+
+
+dom.add(global.document.body, {
+    tag: 'form',
+    action: 'data.json',
+    method: 'post',
+    onsubmit: function (event) {
+        event.preventDefault();
+
+        // test submit form
+        http.request("data.json", event.target);
+        
+    },
+    
+    childNodes: [{
+        childNodes: [{
+            tag: 'label',
+            text: 'text'
+        },
+        {
+            tag: 'input',
+            name: 'text-input',
+            type: 'text'
         }]
     },
     {

@@ -3,6 +3,8 @@
 
 var LIBDOM = require("libdom"),
     LIBCORE = require("libcore"),
+    TYPE_OBJECT = 1,
+    TYPE_ARRAY = 2,
     FIELD_NAME_RE = /^([a-z0-9\-\_])((\[[^\[\]]*\])*)$/i,
     FIELD_NAME_DIMENSION_RE = /\[[^\[\]]*\]/g;
 
@@ -47,32 +49,156 @@ function parseFieldName(name) {
     return null;
 }
 
-function eachFields(form, callback, scope) {
-    var parse = parseFieldName,
-        elements = form.elements,
-        l = elements.length,
-        c = -1;
+function eachValues(values, callback, operation) {
+    var CORE = LIBCORE,
+        typeObject = TYPE_OBJECT,
+        typeArray = TYPE_ARRAY,
+        type = null,
+        each = eachField,
+        isObject = CORE.object,
+        contains = CORE.contains,
+        isObjectValue = isObject(values);
         
-    var field, name;
+    var c, l, name;
     
-    scope = scope || null;
+    if (isForm(values)) {
+        values = values.elements;
+        type = typeArray;
+    }
+    else if (isField(values)) {
+        type = typeArray;
+        values = [values];
+    }
+    else if (isObject) {
+        type = typeObject;
+    }
+    else if (CORE.array(values)) {
+        type = typeArray;
+    }
     
-    for (; l--;) {
-        field = elements[++c];
-        name = parse(field.name);
+    if (!isObject(operation)) {
+        operation = {};
+    }
+    
+    if (!contains(operation, 'returnValue')) {
+        operation.returnValue = null;
+    }
+    
+    if (isObjectValue || type === typeArray) {
         
-        if (name) {
-            callback.call(scope, field, name[0], name[1]);
+        if (isObjectValue) {
+            for (name in values) {
+                if (contains(values, name)) {
+                    each(values[name], name, callback, operation);
+                }
+            }
+        }
+        else {
+            for (c = -1, l = values.length; l--;) {
+                each(values[++c], null, callback, operation);
+            }
         }
     }
     
+    return operation.returnValue;
+}
+
+function eachField(field, name, callback, operation) {
+    var CORE = LIBCORE,
+        isString = CORE.string,
+        hasName = isString(name),
+        fieldType = 'variant',
+        parsed = parseFieldName(name);
+    var type, c, l, list, option;
+    
+    if (isField(field)) {
+        if (!hasName && !isString(name = field.name)) {
+            return;
+        }
+        type = 'field';
+        hasName = true;
+        fieldType = field.type;
+        
+        // field exception by tagname
+        switch (field.tagName.toUpperCase()) {
+        case "BUTTON":
+            if (!isString(fieldType)) {
+                fieldType = "button";
+            }
+            break;
+
+        case "SELECT":
+            type = 'field-options';
+            fieldType = 'select';
+            list = field.options;
+            for (c = -1, l = list.length; l--;) {
+                option = list[++c];
+                // run callback
+                if (option.selected) {
+                    callback(operation,
+                            name,
+                            option.value,
+                            type,
+                            fieldType,
+                            parsed);
+                }
+            }
+            list = option = null;
+            return;
+        
+        case "TEXTAREA":
+            fieldType = "text";
+            break;
+        }
+        
+        // field exception by type
+        switch (fieldType) {
+        case "checkbox":
+        case "radio":
+            if (!field.checked) {
+                return;
+            }
+        }
+        
+    }
+    else {
+        switch (true) {
+        case CORE.array(field):
+            type = 'array';
+            break;
+        case CORE.date(field):
+            type = 'date';
+            break;
+        default:
+            type = typeof field;
+        }
+    }
+    
+    if (hasName) {
+        callback(operation, name, field, type, fieldType, parsed);
+    }
+}
+
+function jsonify(raw) {
+    var json = global.JSON,
+        data = null;
+        
+    if (!json) {
+        throw new Error("JSON is not supported in this platform");
+    }
+    try {
+        data = json.stringify(raw);
+    }
+    catch (e) {}
+    return data === 'null' || data === null ? '' : data;
 }
 
 
 module.exports = {
-    eachFields: eachFields,
+    each: eachValues,
     form: isForm,
-    field: isField
+    field: isField,
+    jsonify: jsonify
 };
 
 

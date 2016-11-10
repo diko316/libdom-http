@@ -48,7 +48,6 @@ function applyRequestForm(form, requestObject) {
     // use this as request header
     item = form.enctype || form.encoding;
     if (isString(item)) {
-        console.log("used content type: ", item, ' enctype ', form.enctype, ' encoding: ', form.encoding);
         requestObject.addHeaders('Content-type: ' + item);
     }
     
@@ -68,8 +67,6 @@ function applyRequestForm(form, requestObject) {
     }
     
     requestObject.data = form;
-    console.log(requestObject);
-    
 }
 
 function applyRequestConfig(config, requestObject) {
