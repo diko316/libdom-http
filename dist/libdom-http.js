@@ -3703,43 +3703,58 @@
         module.exports = EXPORTS;
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var LIBCORE = __webpack_require__(2), HELP = __webpack_require__(42);
-        function applyObject(index, root, rawName, access, value, dimensions) {
-            var CORE = LIBCORE, object = CORE.object, array = CORE.array, contains = CORE.contains, c = -1, parent = root, l = dimensions.length;
-            var l, item, name, isObject;
-            dimensions[l++] = access;
-            for (;l--; ) {
-                item = dimensions[++c];
-                isObject = object(parent);
+        var LIBCORE = __webpack_require__(2), HELP = __webpack_require__(42), NUMERIC_RE = /^[0-9]*$/;
+        function fillValue(parent, name, value) {
+            var CORE = LIBCORE;
+            var current;
+            if (!CORE.contains(parent, name)) {
+                parent[name] = value;
+            }
+            current = parent[name];
+            if (CORE.object(current)) {
+                current[""] = value;
+            } else if (CORE.array(current)) {
+                current[current.length] = value;
+            } else {
+                parent[name] = [ current, value ];
             }
         }
         function createValue(operation, name, value, type, fieldType) {
-            var items = operation.returnValue, isField = type === "field";
-            var parsed;
+            var CORE = LIBCORE, contains = CORE.contains, object = CORE.object, array = CORE.array, items = operation.returnValue, numericRe = NUMERIC_RE, isField = type === "field";
+            var parsed, index, parent, item, c, l, current, numeric, temp;
             if (isField) {
                 if (fieldType === "file") {
                     return;
                 }
                 value = value.value;
             }
-            if (typeof value === "number") {
+            if (value === "number") {
                 value = isFinite(value) ? value.toString(10) : "";
-            } else if (typeof value !== "string") {
+            } else if (!CORE.string(value)) {
                 value = HELP.jsonify(value);
             }
             if (isField || type === "field-options") {
                 parsed = HELP.fieldName(name);
                 if (parsed) {
-                    applyObject(operation.index, items, name, parsed[0], value, parsed[1]);
+                    parent = items;
+                    name = parsed[0];
+                    index = parsed[1];
+                    for (c = -1, l = index.length; l--; ) {
+                        item = index[++c];
+                        numeric = numericRe.test(item);
+                    }
+                    items = parent;
                 }
             }
             items[name] = value;
+            parent = value = null;
         }
         function convert(data) {
             var H = HELP, operation = {
                 index: {},
                 returnValue: {}
             }, body = H.each(data, createValue, operation);
+            console.log("created! ", body);
             return [ null, H.jsonify(body) ];
         }
         module.exports = convert;

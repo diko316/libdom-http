@@ -163,7 +163,25 @@ dom.add(global.document.body, {
             tag: 'input',
             name: 'text-input[][first]',
             type: 'text',
-            value: 'first'
+            value: 'firstValue'
+        },
+        {
+            tag: 'input',
+            name: 'text-input[top]',
+            type: 'text',
+            value: 'topValue[top]'
+        },
+        {
+            tag: 'input',
+            name: 'text-input[top][]',
+            type: 'text',
+            value: 'topValue[top][]'
+        },
+        {
+            tag: 'input',
+            name: 'text-input[top][0][sh]',
+            type: 'text',
+            value: 'topValue[top][0][sh]'
         }]
     },
     {
@@ -176,7 +194,7 @@ dom.add(global.document.body, {
             tag: 'input',
             name: 'another-text-input[]',
             type: 'text',
-            value: 'last'
+            value: 'lastValue'
         }]
         
     },

@@ -1,36 +1,43 @@
 'use strict';
 
 var LIBCORE = require("libcore"),
-    HELP = require("./helper.js");
+    HELP = require("./helper.js"),
+    NUMERIC_RE = /^[0-9]*$/;
 
 
 
-function applyObject(index, root, rawName, access, value, dimensions) {
-    var CORE = LIBCORE,
-        object = CORE.object,
-        array = CORE.array,
-        contains = CORE.contains,
-        c = -1,
-        parent = root,
-        l = dimensions.length;
-    var l, item, name, isObject;
+function fillValue(parent, name, value) {
+    var CORE = LIBCORE;
+    var current;
     
-    // add base name
-    dimensions[l++] = access;
+    // doesn't contain
+    if (!CORE.contains(parent, name)) {
+        parent[name] = value;
+    }
     
-    for (; l--;) {
-        item = dimensions[++c];
-        isObject = object(parent);
-        
-        
+    current = parent[name];
+    
+    if (CORE.object(current)) {
+        current[""] = value;
+    }
+    else if (CORE.array(current)) {
+        current[current.length] = value;
+    }
+    else {
+        parent[name] = [current, value];
     }
 }
 
 
 function createValue(operation, name, value, type, fieldType) {
-    var items = operation.returnValue,
+    var CORE = LIBCORE,
+        contains = CORE.contains,
+        object = CORE.object,
+        array = CORE.array,
+        items = operation.returnValue,
+        numericRe = NUMERIC_RE,
         isField = type === "field";
-    var parsed;
+    var parsed, index, parent, item, c, l, current, numeric, temp;
     
     if (isField) {
         // i can't support file upload
@@ -40,29 +47,37 @@ function createValue(operation, name, value, type, fieldType) {
         value = value.value;
     }
     
-    if (typeof value === 'number') {
+    if (value === 'number') {
         value = isFinite(value) ? value.toString(10) : '';
     }
-    else if (typeof value !== 'string') {
+    else if (!CORE.string(value)) {
         value = HELP.jsonify(value);
     }
     
-    
-    
     // this type of encoding is only available in form fields
     if ((isField || type === 'field-options')) {
+        
         parsed = HELP.fieldName(name);
+        
+        // must conform to https://darobin.github.io/formic/specs/json/
         if (parsed) {
-            applyObject(operation.index,
-                        items,
-                        name,
-                        parsed[0],
-                        value,
-                        parsed[1]);
+            
+            parent = items;
+            name = parsed[0];
+            index = parsed[1];
+            
+            for (c = -1, l = index.length; l--;) {
+                item = index[++c];
+                numeric = numericRe.test(item);
+                
+            }
+            items = parent;
         }
     }
     
     items[name] = value;
+    
+    parent = value = null;
 
 }
 
@@ -73,6 +88,7 @@ function convert(data) {
             returnValue: {}
         },
         body = H.each(data, createValue, operation);
+    console.log('created! ', body);
     return [null, H.jsonify(body)];
 }
 
