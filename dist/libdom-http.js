@@ -3703,10 +3703,19 @@
         module.exports = EXPORTS;
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var HELP = __webpack_require__(42);
-        function createValue(operation, name, value, type, fieldType, parsed) {
-            var items = operation.returnValue, isField = type === "field" || type === "field-options";
-            var dimensions, base;
+        var LIBCORE = __webpack_require__(2), HELP = __webpack_require__(42);
+        function applyObject(index, root, rawName, access, value, dimensions) {
+            var CORE = LIBCORE, object = CORE.object, array = CORE.array, contains = CORE.contains, c = -1, parent = root, l = dimensions.length;
+            var l, item, name, isObject;
+            dimensions[l++] = access;
+            for (;l--; ) {
+                item = dimensions[++c];
+                isObject = object(parent);
+            }
+        }
+        function createValue(operation, name, value, type, fieldType) {
+            var items = operation.returnValue, isField = type === "field";
+            var parsed;
             if (isField) {
                 if (fieldType === "file") {
                     return;
@@ -3718,26 +3727,26 @@
             } else if (typeof value !== "string") {
                 value = HELP.jsonify(value);
             }
-            if (isField && parsed) {
-                base = parsed[0];
-                dimensions;
-                console.log("base ", base);
-            } else {
-                console.log("not parsed", name);
+            if (isField || type === "field-options") {
+                parsed = HELP.fieldName(name);
+                if (parsed) {
+                    applyObject(operation.index, items, name, parsed[0], value, parsed[1]);
+                }
             }
+            items[name] = value;
         }
         function convert(data) {
-            var H = HELP, body = H.each(data, createValue, {
+            var H = HELP, operation = {
+                index: {},
                 returnValue: {}
-            });
-            console.log("run! ", data);
+            }, body = H.each(data, createValue, operation);
             return [ null, H.jsonify(body) ];
         }
         module.exports = convert;
     }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
-            var LIBDOM = __webpack_require__(14), LIBCORE = __webpack_require__(2), TYPE_OBJECT = 1, TYPE_ARRAY = 2, FIELD_NAME_RE = /^([a-z0-9\-\_])((\[[^\[\]]*\])*)$/i, FIELD_NAME_DIMENSION_RE = /\[[^\[\]]*\]/g;
+            var LIBDOM = __webpack_require__(14), LIBCORE = __webpack_require__(2), TYPE_OBJECT = 1, TYPE_ARRAY = 2, FIELD_NAME_RE = /^([a-z0-9\-\_]+)((\[[^\[\]]*\])*)$/i, FIELD_NAME_DIMENSION_RE = /\[[^\[\]]*\]/g;
             function isForm(form) {
                 return LIBDOM.is(form, 1) && form.tagName.toUpperCase() === "FORM";
             }
@@ -3808,7 +3817,7 @@
                 return operation.returnValue;
             }
             function eachField(field, name, callback, operation) {
-                var CORE = LIBCORE, isString = CORE.string, hasName = isString(name), fieldType = "variant", parsed = parseFieldName(name);
+                var CORE = LIBCORE, isString = CORE.string, hasName = isString(name), fieldType = "variant";
                 var type, c, l, list, option;
                 if (isField(field)) {
                     if (!hasName && !isString(name = field.name)) {
@@ -3831,7 +3840,7 @@
                         for (c = -1, l = list.length; l--; ) {
                             option = list[++c];
                             if (option.selected) {
-                                callback(operation, name, option.value, type, fieldType, parsed);
+                                callback(operation, name, option.value, type, fieldType);
                             }
                         }
                         list = option = null;
@@ -3863,7 +3872,7 @@
                     }
                 }
                 if (hasName) {
-                    callback(operation, name, field, type, fieldType, parsed);
+                    callback(operation, name, field, type, fieldType);
                 }
             }
             function jsonify(raw) {
@@ -3880,7 +3889,8 @@
                 each: eachValues,
                 form: isForm,
                 field: isField,
-                jsonify: jsonify
+                jsonify: jsonify,
+                fieldName: parseFieldName
             };
         }).call(exports, function() {
             return this;
@@ -3997,7 +4007,7 @@
         function applyRequestForm(form, requestObject) {
             var CORE = LIBCORE, isString = CORE.string;
             var item;
-            item = form.enctype || form.encoding;
+            item = form.getAttribute("enctype") || form.getAttribute("encoding");
             if (isString(item)) {
                 requestObject.addHeaders("Content-type: " + item);
             }

@@ -89,7 +89,7 @@ dom.add(global.document.body, {
 
 
 
-
+// test application/x-www-form-urlencoded
 dom.add(global.document.body, {
     tag: 'form',
     action: 'data.json',
@@ -109,8 +109,9 @@ dom.add(global.document.body, {
         },
         {
             tag: 'input',
-            name: 'text-input',
-            type: 'text'
+            name: 'text-input[][first]',
+            type: 'text',
+            value: 'first'
         }]
     },
     {
@@ -121,8 +122,61 @@ dom.add(global.document.body, {
         },
         {
             tag: 'input',
-            name: 'another-text-input',
-            type: 'text'
+            name: 'another-text-input[]',
+            type: 'text',
+            value: 'last'
+        }]
+        
+    },
+    
+    {
+        childNodes: [{
+            tag: 'button',
+            type: 'submit',
+            text: 'submit'
+        }]
+    }]
+    
+});
+
+
+// test application/json
+dom.add(global.document.body, {
+    tag: 'form',
+    enctype: 'application/json',
+    action: 'data.json',
+    method: 'post',
+    onsubmit: function (event) {
+        event.preventDefault();
+
+        // test submit form
+        http.request("data.json", event.target);
+        
+    },
+    
+    childNodes: [{
+        childNodes: [{
+            tag: 'label',
+            text: 'text'
+        },
+        {
+            tag: 'input',
+            name: 'text-input[][first]',
+            type: 'text',
+            value: 'first'
+        }]
+    },
+    {
+        
+        childNodes: [{
+            tag: 'label',
+            text: 'another'
+        },
+        {
+            tag: 'input',
+            name: 'another-text-input[]',
+            type: 'text',
+            value: 'last'
         }]
         
     },

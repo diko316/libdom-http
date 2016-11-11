@@ -5,7 +5,7 @@ var LIBDOM = require("libdom"),
     LIBCORE = require("libcore"),
     TYPE_OBJECT = 1,
     TYPE_ARRAY = 2,
-    FIELD_NAME_RE = /^([a-z0-9\-\_])((\[[^\[\]]*\])*)$/i,
+    FIELD_NAME_RE = /^([a-z0-9\-\_]+)((\[[^\[\]]*\])*)$/i,
     FIELD_NAME_DIMENSION_RE = /\[[^\[\]]*\]/g;
 
 
@@ -32,6 +32,7 @@ function parseFieldName(name) {
     
     if (LIBCORE.string(name)) {
         match = name.match(FIELD_NAME_RE);
+        
         if (match) {
             base = match[1];
             array = match[2] && name.match(FIELD_NAME_DIMENSION_RE);
@@ -107,8 +108,7 @@ function eachField(field, name, callback, operation) {
     var CORE = LIBCORE,
         isString = CORE.string,
         hasName = isString(name),
-        fieldType = 'variant',
-        parsed = parseFieldName(name);
+        fieldType = 'variant';
     var type, c, l, list, option;
     
     if (isField(field)) {
@@ -139,8 +139,7 @@ function eachField(field, name, callback, operation) {
                             name,
                             option.value,
                             type,
-                            fieldType,
-                            parsed);
+                            fieldType);
                 }
             }
             list = option = null;
@@ -175,7 +174,7 @@ function eachField(field, name, callback, operation) {
     }
     
     if (hasName) {
-        callback(operation, name, field, type, fieldType, parsed);
+        callback(operation, name, field, type, fieldType);
     }
 }
 
@@ -198,7 +197,8 @@ module.exports = {
     each: eachValues,
     form: isForm,
     field: isField,
-    jsonify: jsonify
+    jsonify: jsonify,
+    fieldName: parseFieldName
 };
 
 

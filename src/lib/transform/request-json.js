@@ -1,12 +1,36 @@
 'use strict';
 
-var HELP = require("./helper.js");
+var LIBCORE = require("libcore"),
+    HELP = require("./helper.js");
 
 
-function createValue(operation, name, value, type, fieldType, parsed) {
+
+function applyObject(index, root, rawName, access, value, dimensions) {
+    var CORE = LIBCORE,
+        object = CORE.object,
+        array = CORE.array,
+        contains = CORE.contains,
+        c = -1,
+        parent = root,
+        l = dimensions.length;
+    var l, item, name, isObject;
+    
+    // add base name
+    dimensions[l++] = access;
+    
+    for (; l--;) {
+        item = dimensions[++c];
+        isObject = object(parent);
+        
+        
+    }
+}
+
+
+function createValue(operation, name, value, type, fieldType) {
     var items = operation.returnValue,
-        isField = type === "field" || type === 'field-options';
-    var dimensions, base;
+        isField = type === "field";
+    var parsed;
     
     if (isField) {
         // i can't support file upload
@@ -23,27 +47,32 @@ function createValue(operation, name, value, type, fieldType, parsed) {
         value = HELP.jsonify(value);
     }
     
+    
+    
     // this type of encoding is only available in form fields
-    if (isField && parsed) {
-        base = parsed[0];
-        dimensions;
-        console.log('base ', base);
+    if ((isField || type === 'field-options')) {
+        parsed = HELP.fieldName(name);
+        if (parsed) {
+            applyObject(operation.index,
+                        items,
+                        name,
+                        parsed[0],
+                        value,
+                        parsed[1]);
+        }
     }
-    else {
-        console.log('not parsed', name);
-    }
     
-    
-    
-    ///items[items.length] = name + '=' + encodeURIComponent(value);
+    items[name] = value;
+
 }
 
 function convert(data) {
     var H = HELP,
-        body = H.each(data, createValue, {
-                    returnValue: {}
-                });
-    console.log('run! ', data);
+        operation = {
+            index: {},
+            returnValue: {}
+        },
+        body = H.each(data, createValue, operation);
     return [null, H.jsonify(body)];
 }
 

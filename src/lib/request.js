@@ -45,8 +45,8 @@ function applyRequestForm(form, requestObject) {
         isString = CORE.string;
     var item;
     
-    // use this as request header
-    item = form.enctype || form.encoding;
+    // use this as request header only if not default
+    item = form.getAttribute('enctype') || form.getAttribute('encoding');
     if (isString(item)) {
         requestObject.addHeaders('Content-type: ' + item);
     }
