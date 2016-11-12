@@ -3720,8 +3720,8 @@
             }
         }
         function createValue(operation, name, value, type, fieldType) {
-            var CORE = LIBCORE, contains = CORE.contains, object = CORE.object, array = CORE.array, items = operation.returnValue, numericRe = NUMERIC_RE, isField = type === "field";
-            var parsed, index, parent, item, c, l, current, numeric, temp;
+            var CORE = LIBCORE, contains = CORE.contains, object = CORE.object, array = CORE.array, assign = CORE.assign, items = operation.returnValue, numericRe = NUMERIC_RE, isField = type === "field";
+            var parsed, index, parent, item, c, l, property, current, numeric, isArray;
             if (isField) {
                 if (fieldType === "file") {
                     return;
@@ -3742,6 +3742,29 @@
                     for (c = -1, l = index.length; l--; ) {
                         item = index[++c];
                         numeric = numericRe.test(item);
+                        if (!name && array(parent)) {
+                            name = parent.length.toString(10);
+                        }
+                        if (contains(parent, name)) {
+                            property = parent[name];
+                            isArray = array(property);
+                            if (!isArray && !object(property)) {
+                                if (numeric) {
+                                    property = [ property ];
+                                } else {
+                                    current = property;
+                                    property = {};
+                                    property[""] = current;
+                                }
+                            } else if (isArray && numeric) {
+                                property = assign({}, property);
+                                delete property.length;
+                            }
+                        } else {
+                            property = numeric ? [] : {};
+                        }
+                        parent = parent[name] = property;
+                        name = item;
                     }
                     items = parent;
                 }
