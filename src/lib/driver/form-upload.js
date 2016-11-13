@@ -85,7 +85,7 @@ function createField(operation, name, value, type, fieldType) {
             input.disabled = true;
             input.readOnly = true;
             impostors[impostors.length] = [value, input];
-            parent.replaceChild(input, value);
+            LIBDOM.replace(value, input);
         }
         input = value;
         operation.files = true;
@@ -309,7 +309,9 @@ FormUpload.prototype = LIBCORE.instantiate(BASE, {
             revertImpostors(impostors);
         }
         
-        LIBDOM.remove(form);
+        if (form) {
+            LIBDOM.remove(form.parentNode || form);
+        }
         
         request.transportPromise = 
             request.resolve =
