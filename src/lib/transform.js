@@ -41,7 +41,7 @@ function register(type, response, handler) {
             
         }
     }
-    return EXPORTS;
+    return EXPORTS.chain;
 }
 
 function transform(type, response, data) {
@@ -71,7 +71,7 @@ function transform(type, response, data) {
     return [null, data];
 }
 
-module.exports = EXPORTS;
+module.exports = EXPORTS.chain = EXPORTS;
 
 
 /**

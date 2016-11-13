@@ -108,6 +108,7 @@ Driver.prototype = {
         // end request and response
         request.end();
         response.end();
+        
         request.transportPromise = null;
         me.onCleanup(request, response);
         
@@ -138,7 +139,6 @@ Driver.prototype = {
         }
         
         delete me.request;
-        
         return Promise.reject(status);
     },
     

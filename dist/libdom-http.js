@@ -22,30 +22,47 @@
         module.exports = __webpack_require__(1);
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var LIBCORE = __webpack_require__(2), DETECT = __webpack_require__(13), DRIVER = __webpack_require__(38), TRANSFORMER = __webpack_require__(39), REQUEST = __webpack_require__(46), rehash = LIBCORE.rehash, register = TRANSFORMER.register, EXPORTS = REQUEST.request;
+        var LIBCORE = __webpack_require__(2), DETECT = __webpack_require__(13), DRIVER = __webpack_require__(38), TRANSFORMER = __webpack_require__(39), REQUEST = __webpack_require__(46), rehash = LIBCORE.rehash, driverRegister = DRIVER.register, transformRegister = TRANSFORMER.register, EXPORTS = REQUEST.request;
         if (DETECT.xhr) {
-            DRIVER.register("xhr", __webpack_require__(49));
-            DRIVER.register("xhr2", __webpack_require__(51));
+            driverRegister("xhr", __webpack_require__(49));
+            driverRegister("xhr2", __webpack_require__(51));
         }
+        transformRegister("text/plain", true, __webpack_require__(52));
         if (DETECT.formdata) {
-            register("multipart/form-data", false, __webpack_require__(52));
+            transformRegister("multipart/form-data", false, __webpack_require__(53));
+        }
+        if (LIBCORE.env.browser) {
+            driverRegister("form-upload", DETECT.xhr && DETECT.file && DETECT.blob ? __webpack_require__(51) : __webpack_require__(54));
         }
         rehash(EXPORTS, REQUEST, {
             request: "request"
         });
+        rehash(EXPORTS, DRIVER, {
+            driver: "register",
+            use: "use"
+        });
+        rehash(EXPORTS, __webpack_require__(48), {
+            parseHeader: "parse",
+            eachHeader: "each"
+        });
+        rehash(EXPORTS, TRANSFORMER, {
+            transformer: "register",
+            transform: "transform"
+        });
+        TRANSFORMER.chain = DRIVER.chain = EXPORTS;
         module.exports = EXPORTS["default"] = EXPORTS;
     }, function(module, exports, __webpack_require__) {
         "use strict";
         module.exports = __webpack_require__(3);
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var DETECT = __webpack_require__(4), OBJECT = __webpack_require__(6), PROCESSOR = __webpack_require__(8), EXPORTS = {
+        var DETECT = __webpack_require__(4), OBJECT = __webpack_require__(6), PROCESSOR = __webpack_require__(9), EXPORTS = {
             env: DETECT
         };
         OBJECT.assign(EXPORTS, __webpack_require__(7));
         OBJECT.assign(EXPORTS, OBJECT);
-        OBJECT.assign(EXPORTS, __webpack_require__(9));
         OBJECT.assign(EXPORTS, __webpack_require__(10));
+        OBJECT.assign(EXPORTS, __webpack_require__(8));
         OBJECT.assign(EXPORTS, PROCESSOR);
         OBJECT.assign(EXPORTS, __webpack_require__(11));
         PROCESSOR.chain = EXPORTS;
@@ -233,7 +250,7 @@
         };
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var O = Object.prototype, TYPE = __webpack_require__(7), OHasOwn = O.hasOwnProperty;
+        var O = Object.prototype, TYPE = __webpack_require__(7), STRING = __webpack_require__(8), OHasOwn = O.hasOwnProperty, NUMERIC_RE = /^[0-9]*$/;
         function empty() {}
         function assign(target, source, defaults) {
             var onAssign = apply, eachProperty = each;
@@ -300,6 +317,58 @@
                 target[name] = value;
             }
             target = null;
+        }
+        function jsonFill(root, path, value, overwrite) {
+            var dimensions = STRING.jsonPath(path), type = TYPE, object = type.object, array = type.array, has = contains, apply = assign, numericRe = NUMERIC_RE, parent = root, name = path;
+            var numeric, item, c, l, property, temp, isArray;
+            if (dimensions) {
+                name = dimensions[0];
+                dimensions.splice(0, 1);
+                for (c = -1, l = dimensions.length; l--; ) {
+                    item = dimensions[++c];
+                    numeric = numericRe.test(item);
+                    if (has(parent, name)) {
+                        property = parent[name];
+                        isArray = array(property);
+                        if (!isArray && !object(property)) {
+                            if (numeric) {
+                                property = [ property ];
+                            } else {
+                                temp = property;
+                                property = {};
+                                property[""] = temp;
+                            }
+                        } else if (isArray && !numeric) {
+                            property = apply({}, property);
+                            delete property.length;
+                        }
+                    } else {
+                        property = numeric ? [] : {};
+                    }
+                    parent = parent[name] = property;
+                    if (!item) {
+                        if (array(parent)) {
+                            item = parent.length;
+                        } else if (0 in parent) {
+                            item = "0";
+                        }
+                    }
+                    name = item;
+                }
+            }
+            if (overwrite !== true && has(parent, name)) {
+                property = parent[name];
+                if (array(property)) {
+                    parent = property;
+                    name = parent.length;
+                } else {
+                    parent = parent[name] = [ property ];
+                    name = 1;
+                }
+            }
+            parent[name] = value;
+            parent = value = property = temp = null;
+            return root;
         }
         function buildInstance(Class, overrides) {
             empty.prototype = Class.prototype;
@@ -429,6 +498,7 @@
             clone: clone,
             compare: compare,
             fillin: fillin,
+            fillJson: jsonFill,
             clear: clear
         };
     }, function(module, exports, __webpack_require__) {
@@ -510,6 +580,180 @@
             date: isDate,
             regex: isRegExp,
             type: isType
+        };
+    }, function(module, exports) {
+        "use strict";
+        var HALF_BYTE = 128, SIX_BITS = 63, ONE_BYTE = 255, fromCharCode = String.fromCharCode, BASE64_MAP = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=", BASE64_EXCESS_REMOVE_RE = /[^a-zA-Z0-9\+\/]/;
+        function base64Encode(str) {
+            var map = BASE64_MAP, buffer = [], bl = 0, c = -1, excess = false, pad = map.charAt(64);
+            var l, total, code, flag, end, chr;
+            str = utf16ToUtf8(str);
+            l = total = str.length;
+            for (;l--; ) {
+                code = str.charCodeAt(++c);
+                flag = c % 3;
+                switch (flag) {
+                  case 0:
+                    chr = map.charAt((code & 252) >> 2);
+                    excess = (code & 3) << 4;
+                    break;
+
+                  case 1:
+                    chr = map.charAt(excess | (code & 240) >> 4);
+                    excess = (code & 15) << 2;
+                    break;
+
+                  case 2:
+                    chr = map.charAt(excess | (code & 192) >> 6);
+                    excess = code & 63;
+                }
+                buffer[bl++] = chr;
+                end = !l;
+                if (end || flag === 2) {
+                    buffer[bl++] = map.charAt(excess);
+                }
+                if (!l) {
+                    l = bl % 4;
+                    for (l = l && 4 - l; l--; ) {
+                        buffer[bl++] = pad;
+                    }
+                    break;
+                }
+            }
+            return buffer.join("");
+        }
+        function base64Decode(str) {
+            var map = BASE64_MAP, oneByte = ONE_BYTE, buffer = [], bl = 0, c = -1, code2str = fromCharCode;
+            var l, code, excess, chr, flag;
+            str = str.replace(BASE64_EXCESS_REMOVE_RE, "");
+            l = str.length;
+            for (;l--; ) {
+                code = map.indexOf(str.charAt(++c));
+                flag = c % 4;
+                switch (flag) {
+                  case 0:
+                    chr = 0;
+                    break;
+
+                  case 1:
+                    chr = (excess << 2 | code >> 4) & oneByte;
+                    break;
+
+                  case 2:
+                    chr = (excess << 4 | code >> 2) & oneByte;
+                    break;
+
+                  case 3:
+                    chr = (excess << 6 | code) & oneByte;
+                }
+                excess = code;
+                if (!l && flag < 3 && chr < 64) {
+                    break;
+                }
+                if (flag) {
+                    buffer[bl++] = code2str(chr);
+                }
+            }
+            return utf8ToUtf16(buffer.join(""));
+        }
+        function utf16ToUtf8(str) {
+            var half = HALF_BYTE, sixBits = SIX_BITS, code2char = fromCharCode, utf8 = [], ul = 0, c = -1, l = str.length;
+            var code;
+            for (;l--; ) {
+                code = str.charCodeAt(++c);
+                if (code < half) {
+                    utf8[ul++] = code2char(code);
+                } else if (code < 2048) {
+                    utf8[ul++] = code2char(192 | code >> 6);
+                    utf8[ul++] = code2char(half | code & sixBits);
+                } else if (code < 55296 || code > 57343) {
+                    utf8[ul++] = code2char(224 | code >> 12);
+                    utf8[ul++] = code2char(half | code >> 6 & sixBits);
+                    utf8[ul++] = code2char(half | code & sixBits);
+                } else {
+                    l--;
+                    code = 65536 + ((code & 1023) << 10 | str.charCodeAt(++c) & 1023);
+                    utf8[ul++] = code2char(240 | code >> 18);
+                    utf8[ul++] = code2char(half | code >> 12 & sixBits);
+                    utf8[ul++] = code2char(half | code >> 6 & sixBits);
+                    utf8[ul++] = code2char(half | code >> sixBits);
+                }
+            }
+            return utf8.join("");
+        }
+        function utf8ToUtf16(str) {
+            var half = HALF_BYTE, sixBits = SIX_BITS, code2char = fromCharCode, utf16 = [], M = Math, min = M.min, max = M.max, ul = 0, l = str.length, c = -1;
+            var code, whatsLeft;
+            for (;l--; ) {
+                code = str.charCodeAt(++c);
+                if (code < half) {
+                    utf16[ul++] = code2char(code);
+                } else if (code > 191 && code < 224) {
+                    utf16[ul++] = code2char((code & 31) << 6 | str.charCodeAt(c + 1) & sixBits);
+                    whatsLeft = max(min(l - 1, 1), 0);
+                    c += whatsLeft;
+                    l -= whatsLeft;
+                } else if (code > 223 && code < 240) {
+                    utf16[ul++] = code2char((code & 15) << 12 | (str.charCodeAt(c + 1) & sixBits) << 6 | str.charCodeAt(c + 2) & sixBits);
+                    whatsLeft = max(min(l - 2, 2), 0);
+                    c += whatsLeft;
+                    l -= whatsLeft;
+                } else {
+                    code = ((code & 7) << 18 | (str.charCodeAt(c + 1) & sixBits) << 12 | (str.charCodeAt(c + 2) & sixBits) << 6 | str.charCodeAt(c + 3) & sixBits) - 65536;
+                    utf16[ul++] = code2char(code >> 10 | 55296, code & 1023 | 56320);
+                    whatsLeft = max(min(l - 3, 3), 0);
+                    c += whatsLeft;
+                    l -= whatsLeft;
+                }
+            }
+            return utf16.join("");
+        }
+        function parseJsonPath(path) {
+            var dimensions = [], dl = 0, buffer = [], bl = dl, TRUE = true, FALSE = false, started = FALSE, merge = FALSE;
+            var c, l, item, last;
+            for (c = -1, l = path.length; l--; ) {
+                item = path.charAt(++c);
+                last = !l;
+                if (item === "[") {
+                    if (started) {
+                        break;
+                    }
+                    started = TRUE;
+                    if (bl) {
+                        merge = TRUE;
+                    }
+                } else if (item === "]") {
+                    if (!started) {
+                        break;
+                    }
+                    started = FALSE;
+                    merge = TRUE;
+                } else {
+                    buffer[bl++] = item;
+                    if (last) {
+                        merge = TRUE;
+                    }
+                }
+                if (merge) {
+                    dimensions[dl++] = buffer.join("");
+                    buffer.length = bl = 0;
+                    merge = FALSE;
+                }
+                if (last) {
+                    if (started || dl < 1) {
+                        break;
+                    }
+                    return dimensions;
+                }
+            }
+            return null;
+        }
+        module.exports = {
+            encode64: base64Encode,
+            decode64: base64Decode,
+            utf2bin: utf16ToUtf8,
+            bin2utf: utf8ToUtf16,
+            jsonPath: parseJsonPath
         };
     }, function(module, exports, __webpack_require__) {
         (function(global) {
@@ -719,142 +963,6 @@
             intersectList: intersect,
             differenceList: difference
         };
-    }, function(module, exports) {
-        "use strict";
-        var HALF_BYTE = 128, SIX_BITS = 63, ONE_BYTE = 255, fromCharCode = String.fromCharCode, BASE64_MAP = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=", BASE64_EXCESS_REMOVE_RE = /[^a-zA-Z0-9\+\/]/;
-        function base64Encode(str) {
-            var map = BASE64_MAP, buffer = [], bl = 0, c = -1, excess = false, pad = map.charAt(64);
-            var l, total, code, flag, end, chr;
-            str = utf16ToUtf8(str);
-            l = total = str.length;
-            for (;l--; ) {
-                code = str.charCodeAt(++c);
-                flag = c % 3;
-                switch (flag) {
-                  case 0:
-                    chr = map.charAt((code & 252) >> 2);
-                    excess = (code & 3) << 4;
-                    break;
-
-                  case 1:
-                    chr = map.charAt(excess | (code & 240) >> 4);
-                    excess = (code & 15) << 2;
-                    break;
-
-                  case 2:
-                    chr = map.charAt(excess | (code & 192) >> 6);
-                    excess = code & 63;
-                }
-                buffer[bl++] = chr;
-                end = !l;
-                if (end || flag === 2) {
-                    buffer[bl++] = map.charAt(excess);
-                }
-                if (!l) {
-                    l = bl % 4;
-                    for (l = l && 4 - l; l--; ) {
-                        buffer[bl++] = pad;
-                    }
-                    break;
-                }
-            }
-            return buffer.join("");
-        }
-        function base64Decode(str) {
-            var map = BASE64_MAP, oneByte = ONE_BYTE, buffer = [], bl = 0, c = -1, code2str = fromCharCode;
-            var l, code, excess, chr, flag;
-            str = str.replace(BASE64_EXCESS_REMOVE_RE, "");
-            l = str.length;
-            for (;l--; ) {
-                code = map.indexOf(str.charAt(++c));
-                flag = c % 4;
-                switch (flag) {
-                  case 0:
-                    chr = 0;
-                    break;
-
-                  case 1:
-                    chr = (excess << 2 | code >> 4) & oneByte;
-                    break;
-
-                  case 2:
-                    chr = (excess << 4 | code >> 2) & oneByte;
-                    break;
-
-                  case 3:
-                    chr = (excess << 6 | code) & oneByte;
-                }
-                excess = code;
-                if (!l && flag < 3 && chr < 64) {
-                    break;
-                }
-                if (flag) {
-                    buffer[bl++] = code2str(chr);
-                }
-            }
-            return utf8ToUtf16(buffer.join(""));
-        }
-        function utf16ToUtf8(str) {
-            var half = HALF_BYTE, sixBits = SIX_BITS, code2char = fromCharCode, utf8 = [], ul = 0, c = -1, l = str.length;
-            var code;
-            for (;l--; ) {
-                code = str.charCodeAt(++c);
-                if (code < half) {
-                    utf8[ul++] = code2char(code);
-                } else if (code < 2048) {
-                    utf8[ul++] = code2char(192 | code >> 6);
-                    utf8[ul++] = code2char(half | code & sixBits);
-                } else if (code < 55296 || code > 57343) {
-                    utf8[ul++] = code2char(224 | code >> 12);
-                    utf8[ul++] = code2char(half | code >> 6 & sixBits);
-                    utf8[ul++] = code2char(half | code & sixBits);
-                } else {
-                    l--;
-                    code = 65536 + ((code & 1023) << 10 | str.charCodeAt(++c) & 1023);
-                    utf8[ul++] = code2char(240 | code >> 18);
-                    utf8[ul++] = code2char(half | code >> 12 & sixBits);
-                    utf8[ul++] = code2char(half | code >> 6 & sixBits);
-                    utf8[ul++] = code2char(half | code >> sixBits);
-                }
-            }
-            return utf8.join("");
-        }
-        function utf8ToUtf16(str) {
-            var half = HALF_BYTE, sixBits = SIX_BITS, code2char = fromCharCode, utf16 = [], M = Math, min = M.min, max = M.max, ul = 0, l = str.length, c = -1;
-            var code, whatsLeft;
-            for (;l--; ) {
-                code = str.charCodeAt(++c);
-                if (code < half) {
-                    utf16[ul++] = code2char(code);
-                } else if (code > 191 && code < 224) {
-                    utf16[ul++] = code2char((code & 31) << 6 | str.charCodeAt(c + 1) & sixBits);
-                    whatsLeft = max(min(l - 1, 1), 0);
-                    c += whatsLeft;
-                    l -= whatsLeft;
-                    console.log("last? ", l);
-                } else if (code > 223 && code < 240) {
-                    utf16[ul++] = code2char((code & 15) << 12 | (str.charCodeAt(c + 1) & sixBits) << 6 | str.charCodeAt(c + 2) & sixBits);
-                    whatsLeft = max(min(l - 2, 2), 0);
-                    c += whatsLeft;
-                    l -= whatsLeft;
-                    console.log("last? ", l);
-                } else {
-                    code = ((code & 7) << 18 | (str.charCodeAt(c + 1) & sixBits) << 12 | (str.charCodeAt(c + 2) & sixBits) << 6 | str.charCodeAt(c + 3) & sixBits) - 65536;
-                    utf16[ul++] = code2char(code >> 10 | 55296, code & 1023 | 56320);
-                    whatsLeft = max(min(l - 3, 3), 0);
-                    c += whatsLeft;
-                    l -= whatsLeft;
-                    console.log("last? ", l);
-                }
-            }
-            return utf16.join("");
-        }
-        module.exports = {
-            encode64: base64Encode,
-            decode64: base64Decode,
-            utf2bin: utf16ToUtf8,
-            bin2utf: utf8ToUtf16
-        };
     }, function(module, exports, __webpack_require__) {
         "use strict";
         var TYPE = __webpack_require__(7), OBJECT = __webpack_require__(6);
@@ -905,7 +1013,7 @@
     }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
-            var TYPE = __webpack_require__(7), OBJECT = __webpack_require__(6), PROCESSOR = __webpack_require__(8), slice = Array.prototype.slice, G = global, INDEX_STATUS = 0, INDEX_DATA = 1, INDEX_PENDING = 2;
+            var TYPE = __webpack_require__(7), OBJECT = __webpack_require__(6), PROCESSOR = __webpack_require__(9), slice = Array.prototype.slice, G = global, INDEX_STATUS = 0, INDEX_DATA = 1, INDEX_PENDING = 2;
             function isPromise(object) {
                 var T = TYPE;
                 return T.object(object) && T.method(object.then);
@@ -1849,7 +1957,7 @@
     }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
-            var CORE = __webpack_require__(2), INFO = __webpack_require__(16), STRING = __webpack_require__(23), EVENTS = null, PAGE_UNLOADED = false, MIDDLEWARE = CORE.middleware("libdom.event"), IE_CUSTOM_EVENTS = {}, ERROR_OBSERVABLE_NO_SUPPORT = STRING[1131], ERROR_INVALID_TYPE = STRING[1132], ERROR_INVALID_HANDLER = STRING[1133], IE_ON = "on", IE_BUBBLE_EVENT = "beforeupdate", IE_NO_BUBBLE_EVENT = "propertychanged", EXPORTS = module.exports = {
+            var CORE = __webpack_require__(2), INFO = __webpack_require__(16), STRING = __webpack_require__(23), EVENTS = null, PAGE_UNLOADED = false, MIDDLEWARE = CORE.middleware("libdom.event"), IE_CUSTOM_EVENTS = {}, ERROR_OBSERVABLE_NO_SUPPORT = STRING[1131], ERROR_INVALID_TYPE = STRING[1132], ERROR_INVALID_HANDLER = STRING[1133], IE_ON = "on", IE_BUBBLE_EVENT = "beforeupdate", IE_NO_BUBBLE_EVENT = "propertychange", EXPORTS = module.exports = {
                 on: listen,
                 un: unlisten,
                 fire: dispatch,
@@ -3594,7 +3702,7 @@
                     DEFAULT = name;
                 }
             }
-            return EXPORTS;
+            return EXPORTS.chain;
         }
         function exists(name) {
             return DRIVERS.exists(name);
@@ -3608,7 +3716,7 @@
         function get(type) {
             return DRIVERS.get(type);
         }
-        module.exports = EXPORTS;
+        module.exports = EXPORTS.chain = EXPORTS;
     }, function(module, exports, __webpack_require__) {
         "use strict";
         var LIBCORE = __webpack_require__(2), TYPES = __webpack_require__(40), TRANSFORMERS = LIBCORE.createRegistry(), REQUEST_PREFIX = "request-", RESPONSE_PREFIX = "response-", EXPORTS = {
@@ -3635,7 +3743,7 @@
                     }
                 }
             }
-            return EXPORTS;
+            return EXPORTS.chain;
         }
         function transform(type, response, data) {
             var transformers = TRANSFORMERS;
@@ -3655,7 +3763,7 @@
             }
             return [ null, data ];
         }
-        module.exports = EXPORTS;
+        module.exports = EXPORTS.chain = EXPORTS;
         item = __webpack_require__(41);
         register("application/json", false, item).register("text/x-json", false, item);
         item = __webpack_require__(43);
@@ -3703,25 +3811,9 @@
         module.exports = EXPORTS;
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var LIBCORE = __webpack_require__(2), HELP = __webpack_require__(42), NUMERIC_RE = /^[0-9]*$/;
-        function fillValue(parent, name, value) {
-            var CORE = LIBCORE;
-            var current;
-            if (!CORE.contains(parent, name)) {
-                parent[name] = value;
-            }
-            current = parent[name];
-            if (CORE.object(current)) {
-                current[""] = value;
-            } else if (CORE.array(current)) {
-                current[current.length] = value;
-            } else {
-                parent[name] = [ current, value ];
-            }
-        }
+        var LIBCORE = __webpack_require__(2), HELP = __webpack_require__(42);
         function createValue(operation, name, value, type, fieldType) {
-            var CORE = LIBCORE, contains = CORE.contains, object = CORE.object, array = CORE.array, assign = CORE.assign, items = operation.returnValue, numericRe = NUMERIC_RE, isField = type === "field";
-            var parsed, index, parent, item, c, l, property, current, numeric, isArray;
+            var CORE = LIBCORE, items = operation.returnValue, isField = type === "field";
             if (isField) {
                 if (fieldType === "file") {
                     return;
@@ -3734,57 +3826,24 @@
                 value = HELP.jsonify(value);
             }
             if (isField || type === "field-options") {
-                parsed = HELP.fieldName(name);
-                if (parsed) {
-                    parent = items;
-                    name = parsed[0];
-                    index = parsed[1];
-                    for (c = -1, l = index.length; l--; ) {
-                        item = index[++c];
-                        numeric = numericRe.test(item);
-                        if (!name && array(parent)) {
-                            name = parent.length.toString(10);
-                        }
-                        if (contains(parent, name)) {
-                            property = parent[name];
-                            isArray = array(property);
-                            if (!isArray && !object(property)) {
-                                if (numeric) {
-                                    property = [ property ];
-                                } else {
-                                    current = property;
-                                    property = {};
-                                    property[""] = current;
-                                }
-                            } else if (isArray && numeric) {
-                                property = assign({}, property);
-                                delete property.length;
-                            }
-                        } else {
-                            property = numeric ? [] : {};
-                        }
-                        parent = parent[name] = property;
-                        name = item;
-                    }
-                    items = parent;
-                }
+                CORE.fillJson(items, name, value);
+            } else {
+                items[name] = value;
             }
-            items[name] = value;
-            parent = value = null;
+            items = value = null;
         }
         function convert(data) {
             var H = HELP, operation = {
                 index: {},
                 returnValue: {}
             }, body = H.each(data, createValue, operation);
-            console.log("created! ", body);
             return [ null, H.jsonify(body) ];
         }
         module.exports = convert;
     }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
-            var LIBDOM = __webpack_require__(14), LIBCORE = __webpack_require__(2), TYPE_OBJECT = 1, TYPE_ARRAY = 2, FIELD_NAME_RE = /^([a-z0-9\-\_]+)((\[[^\[\]]*\])*)$/i, FIELD_NAME_DIMENSION_RE = /\[[^\[\]]*\]/g;
+            var LIBDOM = __webpack_require__(14), LIBCORE = __webpack_require__(2), TYPE_OBJECT = 1, TYPE_ARRAY = 2;
             function isForm(form) {
                 return LIBDOM.is(form, 1) && form.tagName.toUpperCase() === "FORM";
             }
@@ -3801,37 +3860,21 @@
                 }
                 return false;
             }
-            function parseFieldName(name) {
-                var match, base, array, index, c, l;
-                if (LIBCORE.string(name)) {
-                    match = name.match(FIELD_NAME_RE);
-                    if (match) {
-                        base = match[1];
-                        array = match[2] && name.match(FIELD_NAME_DIMENSION_RE);
-                        if (array) {
-                            for (c = -1, l = array.length; l--; ) {
-                                index = array[++c];
-                                array[c] = index.substring(1, index.length - 1);
-                            }
-                        }
-                        return [ base, array || null ];
-                    }
-                }
-                return null;
-            }
             function eachValues(values, callback, operation) {
                 var CORE = LIBCORE, typeObject = TYPE_OBJECT, typeArray = TYPE_ARRAY, type = null, each = eachField, isObject = CORE.object, contains = CORE.contains, isObjectValue = isObject(values);
                 var c, l, name;
                 if (isForm(values)) {
                     values = values.elements;
                     type = typeArray;
+                    isObjectValue = false;
                 } else if (isField(values)) {
                     type = typeArray;
                     values = [ values ];
-                } else if (isObject) {
+                } else if (isObjectValue) {
                     type = typeObject;
                 } else if (CORE.array(values)) {
                     type = typeArray;
+                    isObjectValue = false;
                 }
                 if (!isObject(operation)) {
                     operation = {};
@@ -3927,8 +3970,7 @@
                 each: eachValues,
                 form: isForm,
                 field: isField,
-                jsonify: jsonify,
-                fieldName: parseFieldName
+                jsonify: jsonify
             };
         }).call(exports, function() {
             return this;
@@ -4020,7 +4062,7 @@
         module.exports = convert;
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var LIBCORE = __webpack_require__(2), LIBDOM = __webpack_require__(14), DRIVER = __webpack_require__(38), OPERATION = __webpack_require__(47), HELP = __webpack_require__(42), DEFAULTS = LIBCORE.createRegistry(), METHODS = [ "get", "post", "put", "patch", "delete", "options" ], EXPORTS = {
+        var LIBCORE = __webpack_require__(2), DRIVER = __webpack_require__(38), OPERATION = __webpack_require__(47), HELP = __webpack_require__(42), DEFAULTS = LIBCORE.createRegistry(), METHODS = [ "get", "post", "put", "patch", "delete", "options" ], EXPORTS = {
             request: request,
             defaults: accessDefaults
         };
@@ -4057,9 +4099,13 @@
             if (isString(item)) {
                 requestObject.method = normalizeMethod(item);
             }
-            item = form.getAttribute("transporter");
+            item = form.getAttribute("data-driver");
             if (isString(item)) {
                 requestObject.driver = item;
+            }
+            item = form.getAttribute("data-response-type");
+            if (isString(item)) {
+                requestObject.responseType = item;
             }
             requestObject.data = form;
         }
@@ -4082,6 +4128,10 @@
             item = config.driver;
             if (isString(item)) {
                 requestObject.driver = item;
+            }
+            item = config.responseType;
+            if (isString(item)) {
+                requestObject.responseType = item;
             }
             requestObject.addHeaders(config.headers);
             requestObject.config = config;
@@ -4274,7 +4324,7 @@
                 return void 0;
             },
             process: function() {
-                var me = this, result = TRANSFORMER.transform(me.header("content-type"), false, me.data), headers = result[0], response = me.response;
+                var me = this, result = TRANSFORMER.transform(me.header("content-type"), false, me.data), headers = result[0], responseType = me.responseType, response = me.response;
                 if (headers) {
                     me.addHeaders(headers);
                 }
@@ -4283,6 +4333,10 @@
                     response.destroy();
                 }
                 me.response = response = new Response();
+                if (LIBCORE.string(responseType)) {
+                    response.addHeaders("Content-type: " + responseType);
+                }
+                response.request = me;
                 response.begin();
             }
         });
@@ -4441,6 +4495,7 @@
             Xhr.prototype = LIBCORE.instantiate(BASE, {
                 level: 1,
                 bindMethods: BASE_PROTOTYPE.bindMethods.concat([ "onReadyStateChange" ]),
+                constructor: Xhr,
                 onReadyStateChange: function() {
                     var me = this, request = me.request, xhr = request.xhrTransport, run = MIDDLEWARE.run, args = [ me, request ], resolve = request.resolve, reject = request.reject;
                     var status;
@@ -4475,22 +4530,22 @@
                     return new Promise(bind);
                 },
                 onSetup: function(request) {
-                    var me = this, CORE = LIBCORE, args = [ me, request ], run = MIDDLEWARE.run, xhr = new global.XMLHttpRequest();
-                    var headers;
+                    var me = this, args = [ me, request ], run = MIDDLEWARE.run, xhr = new global.XMLHttpRequest();
                     request.xhrTransport = xhr;
-                    run("after:setup", args);
+                    run("before:setup", args);
                     xhr.onreadystatechange = me.onReadyStateChange;
                     xhr.open(request.method.toUpperCase(), request.url, true);
-                    run("before:request", args);
+                    run("after:setup", args);
+                    xhr = args = args[0] = args[1] = null;
+                },
+                onTransport: function(request) {
+                    var me = this, CORE = LIBCORE, xhr = request.xhrTransport, headers = request.headers, args = [ me, request ];
+                    MIDDLEWARE.run("before:request", args);
+                    request.transportPromise = me.createTransportPromise(request);
                     headers = request.headers;
                     if (CORE.object(headers)) {
                         CORE.each(headers, applyHeader, xhr);
                     }
-                    xhr = args = args[0] = args[1] = null;
-                },
-                onTransport: function(request) {
-                    var me = this, xhr = request.xhrTransport, args = [ me, request ];
-                    request.transportPromise = me.createTransportPromise(request);
                     xhr.send(request.body);
                     MIDDLEWARE.run("after:request", args);
                     xhr = args = args[0] = args[1] = null;
@@ -4512,10 +4567,7 @@
                         MIDDLEWARE.run("after:cleanup", args);
                         args = args[0] = args[1] = xhr = xhr.onreadystatechange = null;
                     }
-                    request.xhrTransport = xhr = null;
-                    request.transportPromise = null;
-                    request.resolve = null;
-                    request.reject = null;
+                    request.transportPromise = request.resolve = request.reject = request.xhrTransport = xhr = null;
                 }
             });
             module.exports = Xhr;
@@ -4600,63 +4652,87 @@
         };
         module.exports = Driver;
     }, function(module, exports, __webpack_require__) {
-        "use strict";
-        var LIBCORE = __webpack_require__(2), LIBDOM = __webpack_require__(14), DETECT = __webpack_require__(13), MIDDLEWARE = LIBCORE.middleware("libdom-http.driver.xhr"), register = MIDDLEWARE.register, BEFORE_REQUEST = "before:request", XHR = __webpack_require__(49), PROTOTYPE = XHR.prototype, BINDS = PROTOTYPE.bindMethods, BIND_LENGTH = BINDS.length, PROGRESS = DETECT.xhrbytes, features = 0;
-        function addTimeout(instance, request) {
-            var timeout = request.settings("timeout");
-            if (LIBCORE.number(timeout) && timeout > 10) {
-                request.xhrTransport.timeout = timeout;
-            }
-        }
-        function addWithCredentials(instance, request) {
-            if (request.settings("withCredentials") === true) {
-                request.xhrTransport.withCredentials = true;
-            }
-        }
-        function onProgress(event) {
-            var instance = this, request = instance.request, api = request.api;
-            var loaded;
-            if (request && event.lengthComputable) {
-                loaded = event.loaded / event.total;
-                request.percentLoaded = loaded;
-                if (api) {
-                    api.percentLoaded = loaded;
+        (function(global) {
+            "use strict";
+            var LIBCORE = __webpack_require__(2), LIBDOM = __webpack_require__(14), DETECT = __webpack_require__(13), MIDDLEWARE = LIBCORE.middleware("libdom-http.driver.xhr"), register = MIDDLEWARE.register, BEFORE_REQUEST = "before:request", XHR = __webpack_require__(49), PROTOTYPE = XHR.prototype, BINDS = PROTOTYPE.bindMethods, BIND_LENGTH = BINDS.length, PROGRESS = DETECT.xhrbytes, features = 0;
+            function addTimeout(instance, request) {
+                var timeout = request.settings("timeout");
+                if (LIBCORE.number(timeout) && timeout > 10) {
+                    request.xhrTransport.timeout = timeout;
                 }
             }
-        }
-        function addProgressEvent(instance, request) {
-            var api = request.api;
-            api.percentLoaded = 0;
-            if (request) {
-                request.percentLoaded = 0;
+            function addWithCredentials(instance, request) {
+                if (request.settings("withCredentials") === true) {
+                    request.xhrTransport.withCredentials = true;
+                }
             }
-            LIBDOM.on(request.xhrTransport, "progress", instance.onProgress);
-        }
-        function cleanup(instance, request) {
+            function onProgress(event) {
+                var instance = this, request = instance.request, api = request.api;
+                var loaded;
+                if (request && event.lengthComputable) {
+                    loaded = event.loaded / event.total;
+                    request.percentLoaded = loaded;
+                    if (api) {
+                        api.percentLoaded = loaded;
+                    }
+                }
+            }
+            function addProgressEvent(instance, request) {
+                var api = request.api;
+                api.percentLoaded = 0;
+                if (request) {
+                    request.percentLoaded = 0;
+                }
+                LIBDOM.on(request.xhrTransport, "progress", instance.onProgress);
+            }
+            function cleanup(instance, request) {
+                if (PROGRESS) {
+                    LIBDOM.un(request.xhrTransport, "progress", instance.onProgress);
+                }
+            }
+            function processFormData(instance, request) {
+                if (request.body instanceof global.FormData) {
+                    delete request.headers["Content-type"];
+                }
+            }
+            if (DETECT.xhrx) {
+                features++;
+                register(BEFORE_REQUEST, addWithCredentials);
+            }
+            if (DETECT.formdata) {
+                features++;
+                register(BEFORE_REQUEST, processFormData);
+            }
             if (PROGRESS) {
-                LIBDOM.un(request.xhrTransport, "progress", instance.onProgress);
+                features++;
+                BINDS[BIND_LENGTH++] = "onProgress";
+                PROTOTYPE.onProgress = onProgress;
+                register(BEFORE_REQUEST, addProgressEvent);
             }
-        }
-        if (DETECT.xhrx) {
-            features++;
-            register(BEFORE_REQUEST, addWithCredentials);
-        }
-        if (PROGRESS) {
-            features++;
-            BINDS[BIND_LENGTH++] = "onProgress";
-            PROTOTYPE.onProgress = onProgress;
-            register(BEFORE_REQUEST, addProgressEvent);
-        }
-        if (DETECT.xhrtime) {
-            register(BEFORE_REQUEST, addTimeout);
-        }
-        if (features) {
-            if (features > 2) {
-                PROTOTYPE.level = 2;
+            if (DETECT.xhrtime) {
+                register(BEFORE_REQUEST, addTimeout);
             }
-            register("cleanup", cleanup);
+            if (features) {
+                if (features > 2) {
+                    PROTOTYPE.level = 2;
+                }
+                register("cleanup", cleanup);
+            }
+            module.exports = XHR;
+        }).call(exports, function() {
+            return this;
+        }());
+    }, function(module, exports, __webpack_require__) {
+        "use strict";
+        var LIBCORE = __webpack_require__(2);
+        function convert(data) {
+            var CORE = LIBCORE;
+            if (CORE.number(data)) {
+                data = data.toString(10);
+            }
+            return [ "Content-type: text/plain", CORE.string(data) ? data : "" ];
         }
-        module.exports = XHR;
+        module.exports = convert;
     }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
@@ -4695,6 +4771,178 @@
                 }) ];
             }
             module.exports = convert;
+        }).call(exports, function() {
+            return this;
+        }());
+    }, function(module, exports, __webpack_require__) {
+        (function(global) {
+            "use strict";
+            var LIBCORE = __webpack_require__(2), LIBDOM = __webpack_require__(14), HELP = __webpack_require__(42), BASE = __webpack_require__(50), BASE_PROTOTYPE = BASE.prototype, RESPONSE_TRIM = /(^<pre>|<\/pre>$)/gi, FILE_UPLOAD_GEN = 0;
+            function createForm(method, url, contentType, blankDocument) {
+                var doc = global.document, id = "libdom-http-oldschool-form" + ++FILE_UPLOAD_GEN, div = doc.createElement("div");
+                var iframe;
+                div.style.cssText = [ "visibility: hidden", "position: fixed", "top: -10px", "left: -10px", "overflow: hidden", "height: 1px", "width: 1px" ].join(";");
+                div.innerHTML = [ '<form id="', id, '"', ' method="', method.toUpperCase(), '"', ' action="', encodeURI(url), '"', ' target="', id, '-result"', ' enctype="', contentType, '"', ' encoding="', contentType, '"', ' data-readystate="uninitialized">', '<iframe name="', id, '-result"', ' id="', id, '-result">', ' src="' + blankDocument + '">', "</iframe>", "</form>" ].join("");
+                iframe = div.firstChild.firstChild;
+                LIBDOM.on(iframe, "load", frameFirstOnloadEvent);
+                doc.body.appendChild(div);
+                doc = div = iframe = null;
+                return id;
+            }
+            function frameFirstOnloadEvent(event) {
+                var DOM = LIBDOM, target = event.target, form = target.parentNode;
+                DOM.un(target, "load", frameFirstOnloadEvent);
+                form.setAttribute("data-readystate", "ready");
+                DOM.dispatch(form, "libdom-http-ready", {});
+                DOM = target = form = null;
+            }
+            function getForm(id) {
+                return global.document.getElementById(id);
+            }
+            function createField(operation, name, value, type, fieldType) {
+                var CORE = LIBCORE, impostors = operation.impostors, fragment = operation.fragment, isField = type === "field", isFile = isField && fieldType === "file", input = null;
+                var parent;
+                if (isFile && value.value) {
+                    parent = value.parentNode;
+                    if (parent) {
+                        input = value.cloneNode();
+                        input.disabled = true;
+                        input.readOnly = true;
+                        impostors[impostors.length] = [ value, input ];
+                        parent.replaceChild(input, value);
+                    }
+                    input = value;
+                    operation.files = true;
+                } else if (!isFile) {
+                    if (isField) {
+                        value = value.value;
+                    }
+                    if (value === "number") {
+                        value = isFinite(value) ? value.toString(10) : "";
+                    } else if (!CORE.string(value)) {
+                        value = HELP.jsonify(value);
+                    }
+                    input = fragment.ownerDocument.createElement("input");
+                    input.type = "hidden";
+                    input.name = name;
+                    input.value = value;
+                }
+                if (input) {
+                    fragment.appendChild(input);
+                }
+                fragment = parent = input = null;
+            }
+            function revertImpostors(impostors) {
+                var l, pair, original, impostor, parent;
+                for (l = impostors.length; l--; ) {
+                    pair = impostors[l];
+                    original = pair[0];
+                    impostor = pair[1];
+                    parent = impostor.parentNode;
+                    if (parent) {
+                        parent.replaceChild(original, impostor);
+                    }
+                    parent = pair = pair[0] = pair[1] = original = impostor = null;
+                }
+            }
+            function FormUpload() {
+                var me = this;
+                BASE.apply(me, arguments);
+            }
+            FormUpload.prototype = LIBCORE.instantiate(BASE, {
+                constructor: FormUpload,
+                blankDocument: "about:blank",
+                defaultType: "application/json",
+                bindMethods: BASE_PROTOTYPE.bindMethods.concat([ "onFormReady", "onFormDeferredSubmit", "onRespond" ]),
+                createTransportPromise: function(request) {
+                    function bind(resolve, reject) {
+                        var local = request;
+                        local.resolve = resolve;
+                        local.reject = reject;
+                    }
+                    return new Promise(bind);
+                },
+                onFormReady: function() {
+                    var me = this, DOM = LIBDOM, request = me.request, form = request.form;
+                    DOM.un(form, "libdom-http-ready", me.onFormReady);
+                    form.enctype = form.encoding = request.contentType;
+                    request.deferredSubmit = setTimeout(me.onFormDeferredSubmit, 10);
+                    form = null;
+                },
+                onFormDeferredSubmit: function() {
+                    var me = this, request = me.request, form = request && request.form;
+                    if (form) {
+                        LIBDOM.on(request.iframe, "load", me.onRespond);
+                        form.submit();
+                    } else if (request) {
+                        request.reject(408);
+                    }
+                    request = form = null;
+                },
+                onRespond: function() {
+                    var me = this, request = me.request, iframe = request.iframe, success = false, docBody = "";
+                    LIBDOM.un(iframe, "load", me.onRespond);
+                    try {
+                        docBody = iframe.contentWindow.document.body.innerHTML;
+                        success = true;
+                    } catch (e) {}
+                    if (success) {
+                        request.formResponse = docBody.replace(RESPONSE_TRIM, "");
+                        request.resolve(200);
+                    } else {
+                        request.reject(406);
+                    }
+                    iframe = null;
+                },
+                onSetup: function(request) {
+                    var me = this, CORE = LIBCORE, impostors = [], id = createForm(request.method, request.url, request.contentType, me.blankDocument), form = getForm(id), operation = {
+                        impostors: impostors,
+                        fragment: global.document.createDocumentFragment(),
+                        files: false,
+                        driver: me,
+                        request: request
+                    }, currentResponseType = request.responseType;
+                    HELP.each(request.data, createField, operation);
+                    form.appendChild(operation.fragment);
+                    request.form = form;
+                    request.iframe = form.firstChild;
+                    request.impostors = operation.impostors;
+                    request.fileUpload = operation.files;
+                    if (!CORE.string(currentResponseType)) {
+                        request.responseType = me.defaultType;
+                    }
+                    CORE.clear(operation);
+                    request.transportPromise = me.createTransportPromise(request);
+                    form = null;
+                },
+                onTransport: function(request) {
+                    var form = request.form, contentType = "application/x-www-form-urlencoded";
+                    if (request.fileUpload) {
+                        contentType = "multipart/form-data";
+                    }
+                    request.addHeaders("Content-type: " + contentType);
+                    if (form.getAttribute("data-readystate") === "ready") {
+                        this.onFormReady();
+                    } else {
+                        LIBDOM.on(form, "libdom-http-ready", this.onFormReady);
+                    }
+                },
+                onSuccess: function(request) {
+                    var me = this, response = me.response, responseBody = request.formResponse;
+                    if (LIBCORE.string(responseBody)) {
+                        response.body = responseBody;
+                    }
+                },
+                onCleanup: function(request) {
+                    var impostors = request.impostors, form = request.form;
+                    if (LIBCORE.array(impostors)) {
+                        revertImpostors(impostors);
+                    }
+                    LIBDOM.remove(form);
+                    request.transportPromise = request.resolve = request.reject = request.form = form = null;
+                }
+            });
+            module.exports = FormUpload;
         }).call(exports, function() {
             return this;
         }());

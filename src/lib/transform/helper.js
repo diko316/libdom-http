@@ -4,9 +4,7 @@
 var LIBDOM = require("libdom"),
     LIBCORE = require("libcore"),
     TYPE_OBJECT = 1,
-    TYPE_ARRAY = 2,
-    FIELD_NAME_RE = /^([a-z0-9\-\_]+)((\[[^\[\]]*\])*)$/i,
-    FIELD_NAME_DIMENSION_RE = /\[[^\[\]]*\]/g;
+    TYPE_ARRAY = 2;
 
 
 
@@ -27,29 +25,6 @@ function isField(field) {
     return false;
 }
 
-function parseFieldName(name) {
-    var match, base, array, index, c, l;
-    
-    if (LIBCORE.string(name)) {
-        match = name.match(FIELD_NAME_RE);
-        
-        if (match) {
-            base = match[1];
-            array = match[2] && name.match(FIELD_NAME_DIMENSION_RE);
-            
-            // create dimension index
-            if (array) {
-                for (c = -1, l = array.length; l--;) {
-                    index = array[++c];
-                    array[c] = index.substring(1, index.length - 1);
-                }
-            }
-            return [base, array || null];
-        }
-    }
-    return null;
-}
-
 function eachValues(values, callback, operation) {
     var CORE = LIBCORE,
         typeObject = TYPE_OBJECT,
@@ -65,16 +40,18 @@ function eachValues(values, callback, operation) {
     if (isForm(values)) {
         values = values.elements;
         type = typeArray;
+        isObjectValue = false;
     }
     else if (isField(values)) {
         type = typeArray;
         values = [values];
     }
-    else if (isObject) {
+    else if (isObjectValue) {
         type = typeObject;
     }
     else if (CORE.array(values)) {
         type = typeArray;
+        isObjectValue = false;
     }
     
     if (!isObject(operation)) {
@@ -86,7 +63,6 @@ function eachValues(values, callback, operation) {
     }
     
     if (isObjectValue || type === typeArray) {
-        
         if (isObjectValue) {
             for (name in values) {
                 if (contains(values, name)) {
@@ -197,8 +173,7 @@ module.exports = {
     each: eachValues,
     form: isForm,
     field: isField,
-    jsonify: jsonify,
-    fieldName: parseFieldName
+    jsonify: jsonify
 };
 
 

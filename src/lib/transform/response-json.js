@@ -23,6 +23,7 @@ function convert(data) {
     catch (e) {
         return null;
     }
+    
     return [null, data];
 }
 

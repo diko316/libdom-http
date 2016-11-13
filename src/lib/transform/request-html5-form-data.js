@@ -16,6 +16,7 @@ function appendFormData(operation, name, value, type, fieldType) {
             for (c = -1, l = list.length; l--;) {
                 value = list[++c];
                 filename = value.name;
+
                 if (isString(filename)) {
                     formData.append(name, value, filename);
                 }

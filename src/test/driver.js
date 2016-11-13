@@ -143,14 +143,21 @@ dom.add(global.document.body, {
 // test application/json
 dom.add(global.document.body, {
     tag: 'form',
-    enctype: 'application/json',
+    enctype: 'multipart/form-data',
     action: 'data.json',
     method: 'post',
     onsubmit: function (event) {
         event.preventDefault();
 
         // test submit form
-        http.request("data.json", event.target);
+        http.request("data.json", {
+            driver: 'form-upload',
+            params: event.target
+        }).
+            then(function (response) {
+                console.log(response);
+                console.log(JSON.stringify(response.data));
+            });
         
     },
     
@@ -167,13 +174,13 @@ dom.add(global.document.body, {
         },
         {
             tag: 'input',
-            name: 'text-input[top]',
+            name: 'text-input[][top]',
             type: 'text',
-            value: 'topValue[top]'
+            value: 'topValue[][top]'
         },
         {
             tag: 'input',
-            name: 'text-input[top][]',
+            name: 'text-input[top[]',
             type: 'text',
             value: 'topValue[top][]'
         },
@@ -182,6 +189,38 @@ dom.add(global.document.body, {
             name: 'text-input[top][0][sh]',
             type: 'text',
             value: 'topValue[top][0][sh]'
+        }]
+    },
+    {
+        childNodes: [{
+            tag: 'input',
+            type: 'hidden',
+            name: 'pet[0][species]',
+            value: 'petValue[0][species]'
+        },
+        {
+            tag: 'input',
+            type: 'hidden',
+            name: 'pet[0][name]',
+            value: 'petValue[0][name]'
+        },
+        {
+            tag: 'input',
+            type: 'hidden',
+            name: 'pet[1][species]',
+            value: 'petValue[1][species]'
+        },
+        {
+            tag: 'input',
+            type: 'hidden',
+            name: 'pet[1][name]',
+            value: 'petValue[1][name]'
+            
+        },
+        {
+            tag: 'input',
+            type: 'file',
+            name: 'file-ni'
         }]
     },
     {

@@ -69,11 +69,27 @@ function cleanup(instance, request) {
 }
 
 
+function processFormData(instance, request) {
+
+    // remove content type and use FormData defaults
+    if (request.body instanceof global.FormData) {
+        delete request.headers['Content-type'];
+    }
+
+}
+
+
 
 // apply middlewares according to capability of the platform
 if (DETECT.xhrx) {
     features++;
     register(BEFORE_REQUEST, addWithCredentials);
+}
+
+// form data fixes
+if (DETECT.formdata) {
+    features++;
+    register(BEFORE_REQUEST, processFormData);
 }
 
 // progress
@@ -84,9 +100,12 @@ if (PROGRESS) {
     register(BEFORE_REQUEST, addProgressEvent);
 }
 
+// timeout
 if (DETECT.xhrtime) {
     register(BEFORE_REQUEST, addTimeout);
 }
+
+
 
 // cleanup
 if (features) {

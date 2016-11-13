@@ -24,7 +24,7 @@ function register(name, Class) {
             DEFAULT = name;
         }
     }
-    return EXPORTS;
+    return EXPORTS.chain;
 }
 
 function exists(name) {
@@ -47,4 +47,4 @@ function get(type) {
 
 
 
-module.exports = EXPORTS;
+module.exports = EXPORTS.chain = EXPORTS;

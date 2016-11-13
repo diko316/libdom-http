@@ -1,7 +1,6 @@
 'use strict';
 
 var LIBCORE = require("libcore"),
-    LIBDOM = require("libdom"),
     DRIVER = require("./driver.js"),
     OPERATION = require("./operation.js"),
     HELP = require("./transform/helper.js"),
@@ -61,9 +60,15 @@ function applyRequestForm(form, requestObject) {
         requestObject.method = normalizeMethod(item);
     }
     
-    item = form.getAttribute('transporter');
+    item = form.getAttribute('data-driver');
     if (isString(item)) {
         requestObject.driver = item;
+    }
+    
+    
+    item = form.getAttribute('data-response-type');
+    if (isString(item)) {
+        requestObject.responseType = item;
     }
     
     requestObject.data = form;
@@ -96,6 +101,11 @@ function applyRequestConfig(config, requestObject) {
     item = config.driver;
     if (isString(item)) {
         requestObject.driver = item;
+    }
+    
+    item = config.responseType;
+    if (isString(item)) {
+        requestObject.responseType = item;
     }
     
     // add headers

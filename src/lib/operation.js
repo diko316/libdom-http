@@ -203,6 +203,7 @@ Request.prototype = LIBCORE.instantiate(Operation, {
                                         false,
                                         me.data),
             headers = result[0],
+            responseType = me.responseType,
             response = me.response;
         
         // data will be parsed to create body based on the content type
@@ -218,6 +219,12 @@ Request.prototype = LIBCORE.instantiate(Operation, {
         }
         
         me.response = response = new Response();
+        
+        // use response type as resonse contentType
+        if (LIBCORE.string(responseType)) {
+            response.addHeaders('Content-type: ' + responseType);
+        }
+        response.request = me;
         response.begin();
     }
 });

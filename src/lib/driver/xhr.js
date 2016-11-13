@@ -41,6 +41,8 @@ Xhr.prototype = LIBCORE.instantiate(BASE, {
                     'onReadyStateChange'
                 ]),
     
+    constructor: Xhr,
+    
     onReadyStateChange: function () {
         var me = this,
             request = me.request,
@@ -86,28 +88,20 @@ Xhr.prototype = LIBCORE.instantiate(BASE, {
     
     onSetup: function (request) {
         var me = this,
-            CORE = LIBCORE,
             args = [me, request],
             run = MIDDLEWARE.run,
             xhr = new (global.XMLHttpRequest)();
-        var headers;
             
         
         request.xhrTransport = xhr;
         
-        run("after:setup", args);
+        run("before:setup", args);
 
         xhr.onreadystatechange = me.onReadyStateChange;
         xhr.open(request.method.toUpperCase(), request.url, true);
         
         
-        run("before:request", args);
-        
-        // apply headers
-        headers = request.headers;
-        if (CORE.object(headers)) {
-            CORE.each(headers, applyHeader, xhr);
-        }
+        run("after:setup", args);
         
         xhr = args = args[0] = args[1] = null;
         
@@ -115,14 +109,27 @@ Xhr.prototype = LIBCORE.instantiate(BASE, {
     
     onTransport: function (request) {
         var me = this,
+            CORE = LIBCORE,
             xhr = request.xhrTransport,
+            headers = request.headers,
             args = [me, request];
        
+        MIDDLEWARE.run("before:request", args);
+       
         request.transportPromise = me.createTransportPromise(request);
+        
+        
+        
+        // apply headers
+        headers = request.headers;
+        if (CORE.object(headers)) {
+            CORE.each(headers, applyHeader, xhr);
+        }
         
         xhr.send(request.body);
         
         MIDDLEWARE.run("after:request", args);
+        
         
         xhr = args = args[0] = args[1] = null;
         
@@ -159,10 +166,11 @@ Xhr.prototype = LIBCORE.instantiate(BASE, {
             args = args[0] = args[1] = 
                     xhr = xhr.onreadystatechange = null;
         }
-        request.xhrTransport = xhr = null;
-        request.transportPromise = null;
-        request.resolve = null;
-        request.reject = null;
+        
+        request.transportPromise = 
+            request.resolve =
+            request.reject = 
+            request.xhrTransport = xhr = null;
     }
 
 });

@@ -6,22 +6,29 @@ var LIBCORE = require("libcore"),
     TRANSFORMER = require("./lib/transform.js"),
     REQUEST = require("./lib/request.js"),
     rehash = LIBCORE.rehash,
-    register = TRANSFORMER.register,
+    driverRegister = DRIVER.register,
+    transformRegister = TRANSFORMER.register,
     EXPORTS = REQUEST.request;
+
+
 
 // xhr
 if (DETECT.xhr) {
-    DRIVER.register('xhr',
+    driverRegister('xhr',
                 require("./lib/driver/xhr.js"));
     
-    DRIVER.register('xhr2',
+    driverRegister('xhr2',
                 require("./lib/driver/xhr2.js"));
 }
 
 // transforms
+transformRegister('text/plain',
+    true,
+    require("./lib/transform/response-text-plain.js"));
+
 if (DETECT.formdata) {
     // use html5 form data request
-    register('multipart/form-data',
+    transformRegister('multipart/form-data',
         false,
         require("./lib/transform/request-html5-form-data.js"));
 }
@@ -29,36 +36,46 @@ if (DETECT.formdata) {
 
 
 
+// file upload drivers
+if (LIBCORE.env.browser) {
+    driverRegister('form-upload',
+        DETECT.xhr && DETECT.file && DETECT.blob ?
+            // form data
+            require("./lib/driver/xhr2.js") :
+            
+            // old school iframe
+            require('./lib/driver/form-upload.js'));
+}
 
 // create api
 rehash(EXPORTS, REQUEST, {
         "request": "request"
     });
-//rehash(EXPORTS,
-//    DRIVER,
-//    {
-//        "request": "request",
-//        "register": "register",
-//        "use": "use"
-//    });
-//
-//rehash(EXPORTS,
-//    HEADER,
-//    {
-//        "parseHeader": "parse",
-//        "eachHeader": "each"
-//    });
-//
-//rehash(EXPORTS,
-//    TRANSFORM,
-//    {
-//        "parseType": "parse",
-//        "transformer": "register",
-//        "transform": "transform"
-//    });
 
-//TRANSFORM.chain =
-//    DRIVER.chain = EXPORTS;
+rehash(EXPORTS,
+    DRIVER,
+    {
+        "driver": "register",
+        "use": "use"
+    });
+
+
+rehash(EXPORTS,
+    require("./lib/header.js"),
+    {
+        "parseHeader": "parse",
+        "eachHeader": "each"
+    });
+
+rehash(EXPORTS,
+    TRANSFORMER,
+    {
+        "transformer": "register",
+        "transform": "transform"
+    });
+
+TRANSFORMER.chain =
+    DRIVER.chain = EXPORTS;
 
 module.exports = EXPORTS['default'] = EXPORTS;
 
