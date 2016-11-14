@@ -583,7 +583,7 @@
         };
     }, function(module, exports) {
         "use strict";
-        var HALF_BYTE = 128, SIX_BITS = 63, ONE_BYTE = 255, fromCharCode = String.fromCharCode, BASE64_MAP = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=", BASE64_EXCESS_REMOVE_RE = /[^a-zA-Z0-9\+\/]/;
+        var HALF_BYTE = 128, SIX_BITS = 63, ONE_BYTE = 255, fromCharCode = String.fromCharCode, BASE64_MAP = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=", BASE64_EXCESS_REMOVE_RE = /[^a-zA-Z0-9\+\/]/, CAMEL_RE = /[^a-z]+[a-z]/gi, UNCAMEL_RE = /\-*[A-Z]/g;
         function base64Encode(str) {
             var map = BASE64_MAP, buffer = [], bl = 0, c = -1, excess = false, pad = map.charAt(64);
             var l, total, code, flag, end, chr;
@@ -748,12 +748,26 @@
             }
             return null;
         }
+        function camelize(str) {
+            return str.replace(CAMEL_RE, applyCamelize);
+        }
+        function applyCamelize(all) {
+            return all.charAt(all.length - 1).toUpperCase();
+        }
+        function uncamelize(str) {
+            return str.replace(UNCAMEL_RE, applyUncamelize);
+        }
+        function applyUncamelize(all) {
+            return "-" + all.charAt(all.length - 1).toLowerCase();
+        }
         module.exports = {
             encode64: base64Encode,
             decode64: base64Decode,
             utf2bin: utf16ToUtf8,
             bin2utf: utf8ToUtf16,
-            jsonPath: parseJsonPath
+            jsonPath: parseJsonPath,
+            camelize: camelize,
+            uncamelize: uncamelize
         };
     }, function(module, exports, __webpack_require__) {
         (function(global) {
@@ -1405,8 +1419,8 @@
     }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
-            var CORE = __webpack_require__(2), SEPARATE_RE = /[ \r\n\t]*[ \r\n\t]+[ \r\n\t]*/, CAMEL_RE = /[^a-z]+[a-z]/gi, STYLIZE_RE = /^([Mm]oz|[Ww]ebkit|[Mm]s|[oO])[A-Z]/, HTML_ESCAPE_CHARS_RE = /[^\u0021-\u007e]|[\u003e\u003c\&\"\']/g, TEXTAREA = global.document.createElement("textarea"), EXPORTS = {
-                camelize: camelize,
+            var CORE = __webpack_require__(2), SEPARATE_RE = /[ \r\n\t]*[ \r\n\t]+[ \r\n\t]*/, STYLIZE_RE = /^([Mm]oz|[Ww]ebkit|[Mm]s|[oO])[A-Z]/, HTML_ESCAPE_CHARS_RE = /[^\u0021-\u007e]|[\u003e\u003c\&\"\']/g, TEXTAREA = global.document.createElement("textarea"), EXPORTS = {
+                camelize: CORE.camelize,
                 stylize: stylize,
                 addWord: addWord,
                 removeWord: removeWord,
@@ -1434,21 +1448,9 @@
                 2005: "DOM selection not supported.",
                 2006: "CSS Opacity is not supported by this browser"
             };
-            function camelize(str) {
-                return str.replace(CAMEL_RE, onCamelizeMatch);
-            }
-            function onCamelizeMatch(all) {
-                return all[all.length - 1].toUpperCase();
-            }
-            function onStylizeMatch(all, match) {
-                var found = match.toLowerCase(), len = found.length;
-                if (found === "moz") {
-                    found = "Moz";
-                }
-                return found + all.substring(len, all.length);
-            }
             function stylize(str) {
-                return camelize(str).replace(STYLIZE_RE, onStylizeMatch);
+                str = CORE.camelize(str);
+                return STYLIZE_RE.test(str) ? str.charAt(0).toUpperCase() + str.substring(1, str.length) : str;
             }
             function addWord(str, items) {
                 var isString = CORE.string, c = -1, l = items.length;
