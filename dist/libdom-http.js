@@ -22,17 +22,17 @@
         module.exports = __webpack_require__(1);
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var LIBCORE = __webpack_require__(2), DETECT = __webpack_require__(13), DRIVER = __webpack_require__(38), TRANSFORMER = __webpack_require__(39), REQUEST = __webpack_require__(46), rehash = LIBCORE.rehash, driverRegister = DRIVER.register, transformRegister = TRANSFORMER.register, EXPORTS = REQUEST.request;
+        var LIBCORE = __webpack_require__(2), DETECT = __webpack_require__(14), DRIVER = __webpack_require__(39), TRANSFORMER = __webpack_require__(40), REQUEST = __webpack_require__(47), rehash = LIBCORE.rehash, driverRegister = DRIVER.register, transformRegister = TRANSFORMER.register, EXPORTS = REQUEST.request;
         if (DETECT.xhr) {
-            driverRegister("xhr", __webpack_require__(49));
-            driverRegister("xhr2", __webpack_require__(51));
+            driverRegister("xhr", __webpack_require__(50));
+            driverRegister("xhr2", __webpack_require__(52));
         }
-        transformRegister("text/plain", true, __webpack_require__(52));
+        transformRegister("text/plain", true, __webpack_require__(53));
         if (DETECT.formdata) {
-            transformRegister("multipart/form-data", false, __webpack_require__(53));
+            transformRegister("multipart/form-data", false, __webpack_require__(54));
         }
         if (LIBCORE.env.browser) {
-            driverRegister("form-upload", DETECT.xhr && DETECT.file && DETECT.blob ? __webpack_require__(51) : __webpack_require__(54));
+            driverRegister("form-upload", DETECT.xhr && DETECT.file && DETECT.blob ? __webpack_require__(52) : __webpack_require__(55));
         }
         rehash(EXPORTS, REQUEST, {
             request: "request"
@@ -41,7 +41,7 @@
             driver: "register",
             use: "use"
         });
-        rehash(EXPORTS, __webpack_require__(48), {
+        rehash(EXPORTS, __webpack_require__(49), {
             parseHeader: "parse",
             eachHeader: "each"
         });
@@ -65,8 +65,9 @@
         OBJECT.assign(EXPORTS, __webpack_require__(8));
         OBJECT.assign(EXPORTS, PROCESSOR);
         OBJECT.assign(EXPORTS, __webpack_require__(11));
+        OBJECT.assign(EXPORTS, __webpack_require__(12));
         PROCESSOR.chain = EXPORTS;
-        EXPORTS.Promise = __webpack_require__(12);
+        EXPORTS.Promise = __webpack_require__(13);
         module.exports = EXPORTS["default"] = EXPORTS;
     }, function(module, exports, __webpack_require__) {
         (function(global) {
@@ -498,7 +499,7 @@
             clone: clone,
             compare: compare,
             fillin: fillin,
-            fillJson: jsonFill,
+            urlFill: jsonFill,
             clear: clear
         };
     }, function(module, exports, __webpack_require__) {
@@ -1025,6 +1026,159 @@
             createRegistry: create
         };
     }, function(module, exports, __webpack_require__) {
+        "use strict";
+        var TYPE = __webpack_require__(7), OBJECT = __webpack_require__(6), NUMERIC_RE = /^([1-9][0-9]*|0)$/;
+        function eachPath(path, callback, arg1, arg2, arg3, arg4) {
+            var escape = "\\", dot = ".", buffer = [], bl = 0;
+            var c, l, chr, apply, last;
+            for (c = -1, l = path.length; l--; ) {
+                chr = path.charAt(++c);
+                apply = false;
+                last = !l;
+                switch (chr) {
+                  case escape:
+                    chr = "";
+                    if (l) {
+                        chr = path.charAt(++c);
+                        l--;
+                    }
+                    break;
+
+                  case dot:
+                    chr = "";
+                    apply = true;
+                    break;
+                }
+                if (chr) {
+                    buffer[bl++] = chr;
+                }
+                if (last || apply) {
+                    if (bl) {
+                        if (callback(buffer.join(""), last, arg1, arg2, arg3, arg4) === false) {
+                            return;
+                        }
+                        buffer.length = bl = 0;
+                    }
+                }
+            }
+        }
+        function isAccessible(subject, item) {
+            var type = TYPE;
+            switch (true) {
+              case type.object(subject):
+              case type.array(subject) && (!NUMERIC_RE.test(item) || item !== "length"):
+                if (!OBJECT.contains(subject, item)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        function findCallback(item, last, operation) {
+            var subject = operation[1];
+            if (!isAccessible(subject, item)) {
+                operation[0] = void 0;
+                return false;
+            }
+            operation[last ? 0 : 1] = subject[item];
+            return true;
+        }
+        function find(path, object) {
+            var operation = [ void 0, object ];
+            eachPath(path, findCallback, operation);
+            operation[1] = null;
+            return operation[0];
+        }
+        function clone(path, object, deep) {
+            return OBJECT.clone(find(path, object), deep);
+        }
+        function getItemsCallback(item, last, operation) {
+            operation[operation.length] = item;
+        }
+        function assign(path, subject, value, overwrite) {
+            var type = TYPE, has = OBJECT.contains, array = type.array, object = type.object, apply = type.assign, parent = subject, numericRe = NUMERIC_RE;
+            var items, c, l, item, name, numeric, property, isArray, temp;
+            if (object(parent) || array(parent)) {
+                eachPath(path, getItemsCallback, items = []);
+                if (items.length) {
+                    name = items[0];
+                    items.splice(0, 1);
+                    for (c = -1, l = items.length; l--; ) {
+                        item = items[++c];
+                        numeric = numericRe.test(item);
+                        if (has(parent, name)) {
+                            property = parent[name];
+                            isArray = array(property);
+                            if (!isArray && !object(property)) {
+                                if (numeric) {
+                                    property = [ property ];
+                                } else {
+                                    temp = property;
+                                    property = {};
+                                    property[""] = temp;
+                                }
+                            } else if (isArray && !numeric) {
+                                property = apply({}, property);
+                                delete property.length;
+                            }
+                        } else {
+                            property = numeric ? [] : {};
+                        }
+                        parent = parent[name] = property;
+                        name = item;
+                    }
+                    if (overwrite !== true && has(parent, name)) {
+                        property = parent[name];
+                        if (array(property)) {
+                            parent = property;
+                            name = parent.length;
+                        } else {
+                            parent = parent[name] = [ property ];
+                            name = 1;
+                        }
+                    }
+                    parent[name] = value;
+                    parent = value = property = temp = null;
+                    return true;
+                }
+            }
+            return false;
+        }
+        function removeCallback(item, last, operation) {
+            var subject = operation[0];
+            var isLength;
+            if (!isAccessible(subject, item)) {
+                return false;
+            }
+            if (last) {
+                if (TYPE.array(subject)) {
+                    isLength = item === "length";
+                    subject.splice(isLength ? 0 : item.toString(10), isLength ? subject.length : 1);
+                } else {
+                    delete subject[item];
+                }
+                operation[1] = true;
+            } else {
+                operation[0] = subject[item];
+            }
+        }
+        function remove(path, object) {
+            var operation = [ object, false ];
+            eachPath(path, removeCallback, operation);
+            operation[0] = null;
+            return operation[1];
+        }
+        function compare(path, object1, object2) {
+            return OBJECT.compare(find(path, object1), object1, object2);
+        }
+        module.exports = {
+            jsonFind: find,
+            jsonCompare: compare,
+            jsonClone: clone,
+            jsonEach: eachPath,
+            jsonSet: assign,
+            jsonUnset: remove
+        };
+    }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
             var TYPE = __webpack_require__(7), OBJECT = __webpack_require__(6), PROCESSOR = __webpack_require__(9), slice = Array.prototype.slice, G = global, INDEX_STATUS = 0, INDEX_DATA = 1, INDEX_PENDING = 2;
@@ -1196,7 +1350,7 @@
     }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
-            var DOM = __webpack_require__(14), ENV = DOM.env, G = global, XHR = G.XMLHttpRequest, support_xhr = !!XHR, support_xhrx = false, support_xhrmime = false, support_xhrtime = false, support_xhrbin = false, support_xhrprogress = false, support_xdr = !!G.XDomainRequest;
+            var DOM = __webpack_require__(15), ENV = DOM.env, G = global, XHR = G.XMLHttpRequest, support_xhr = !!XHR, support_xhrx = false, support_xhrmime = false, support_xhrtime = false, support_xhrbin = false, support_xhrprogress = false, support_xdr = !!G.XDomainRequest;
             if (ENV.browser) {
                 if (XHR) {
                     XHR = XHR.prototype;
@@ -1225,21 +1379,21 @@
         }());
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        module.exports = __webpack_require__(15);
+        module.exports = __webpack_require__(16);
     }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
-            var CORE = __webpack_require__(2), detect = __webpack_require__(16), rehash = CORE.rehash, EXPORTS = {
+            var CORE = __webpack_require__(2), detect = __webpack_require__(17), rehash = CORE.rehash, EXPORTS = {
                 env: CORE.env,
                 info: detect
             };
             var css, event, dimension, selection;
             if (detect) {
-                rehash(EXPORTS, __webpack_require__(23), {
+                rehash(EXPORTS, __webpack_require__(24), {
                     xmlEncode: "xmlEncode",
                     xmlDecode: "xmlDecode"
                 });
-                rehash(EXPORTS, __webpack_require__(24), {
+                rehash(EXPORTS, __webpack_require__(25), {
                     is: "is",
                     isView: "isView",
                     contains: "contains",
@@ -1252,36 +1406,36 @@
                     replace: "replace",
                     remove: "remove"
                 });
-                rehash(EXPORTS, css = __webpack_require__(26), {
+                rehash(EXPORTS, css = __webpack_require__(27), {
                     addClass: "add",
                     removeClass: "remove",
                     computedStyle: "computedStyle",
                     stylize: "style"
                 });
-                rehash(EXPORTS, event = __webpack_require__(25), {
+                rehash(EXPORTS, event = __webpack_require__(26), {
                     on: "on",
                     un: "un",
                     purge: "purge",
                     dispatch: "fire",
                     destructor: "ondestroy"
                 });
-                rehash(EXPORTS, dimension = __webpack_require__(34), {
+                rehash(EXPORTS, dimension = __webpack_require__(35), {
                     offset: "offset",
                     size: "size",
                     box: "box",
                     scroll: "scroll",
                     screen: "screen"
                 });
-                rehash(EXPORTS, selection = __webpack_require__(35), {
+                rehash(EXPORTS, selection = __webpack_require__(36), {
                     highlight: "select",
                     noHighlight: "unselectable",
                     clearHighlight: "clear"
                 });
-                rehash(EXPORTS, __webpack_require__(27), {
+                rehash(EXPORTS, __webpack_require__(28), {
                     parseColor: "parse",
                     formatColor: "stringify"
                 });
-                rehash(EXPORTS, __webpack_require__(36), {
+                rehash(EXPORTS, __webpack_require__(37), {
                     eachDisplacement: "each",
                     animateStyle: "style"
                 });
@@ -1293,15 +1447,15 @@
         }());
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var browser = __webpack_require__(17), EXPORTS = false;
+        var browser = __webpack_require__(18), EXPORTS = false;
         if (browser) {
             EXPORTS = {
                 browser: browser,
-                event: __webpack_require__(18),
-                dom: __webpack_require__(19),
-                css: __webpack_require__(20),
-                dimension: __webpack_require__(21),
-                selection: __webpack_require__(22)
+                event: __webpack_require__(19),
+                dom: __webpack_require__(20),
+                css: __webpack_require__(21),
+                dimension: __webpack_require__(22),
+                selection: __webpack_require__(23)
             };
         }
         module.exports = EXPORTS;
@@ -1391,7 +1545,7 @@
     }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
-            var DETECTED = __webpack_require__(17), WINDOW = global.window, ieVersion = DETECTED.ieVersion;
+            var DETECTED = __webpack_require__(18), WINDOW = global.window, ieVersion = DETECTED.ieVersion;
             module.exports = {
                 screensize: typeof WINDOW.innerWidth !== "undefined",
                 pagescroll: typeof WINDOW.pageXOffset !== "undefined",
@@ -1535,7 +1689,7 @@
         }());
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var CORE = __webpack_require__(2), DETECTED = __webpack_require__(16), EVENT = __webpack_require__(25), STRING = __webpack_require__(23), ORDER_TYPE_PREORDER = 1, ORDER_TYPE_POSTORDER = 2, ORDER_TYPE_LEVELORDER = 3, ERROR_INVALID_DOM = STRING[1101], ERROR_INVALID_DOM_NODE = STRING[1103], ERROR_INVALID_CSS_SELECTOR = STRING[1111], ERROR_INVALID_CALLBACK = STRING[1112], ERROR_INVALID_ELEMENT_CONFIG = STRING[1121], INVALID_DESCENDANT_NODE_TYPES = {
+        var CORE = __webpack_require__(2), DETECTED = __webpack_require__(17), EVENT = __webpack_require__(26), STRING = __webpack_require__(24), ORDER_TYPE_PREORDER = 1, ORDER_TYPE_POSTORDER = 2, ORDER_TYPE_LEVELORDER = 3, ERROR_INVALID_DOM = STRING[1101], ERROR_INVALID_DOM_NODE = STRING[1103], ERROR_INVALID_CSS_SELECTOR = STRING[1111], ERROR_INVALID_CALLBACK = STRING[1112], ERROR_INVALID_ELEMENT_CONFIG = STRING[1121], INVALID_DESCENDANT_NODE_TYPES = {
             9: 1,
             11: 1
         }, STD_CONTAINS = notSupportedContains, DOM_ATTRIBUTE_RE = /(^\_|[^a-zA-Z\_])/, DOM_ATTRIBUTE_LIST = [ "nodeType", "nodeValue", "ownerDocument", "tagName", "attributes", "parentNode", "childNodes", "firstChild", "lastChild", "previousSibling", "nextSibling", "sourceIndex", "type" ], EVENT_ATTRIBUTE_RE = /^on(\-?[a-zA-Z].+)?$/, MANIPULATION_HELPERS = CORE.createRegistry(), EXPORTS = {
@@ -1959,7 +2113,7 @@
     }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
-            var CORE = __webpack_require__(2), INFO = __webpack_require__(16), STRING = __webpack_require__(23), EVENTS = null, PAGE_UNLOADED = false, MIDDLEWARE = CORE.middleware("libdom.event"), IE_CUSTOM_EVENTS = {}, ERROR_OBSERVABLE_NO_SUPPORT = STRING[1131], ERROR_INVALID_TYPE = STRING[1132], ERROR_INVALID_HANDLER = STRING[1133], IE_ON = "on", IE_BUBBLE_EVENT = "beforeupdate", IE_NO_BUBBLE_EVENT = "propertychange", EXPORTS = module.exports = {
+            var CORE = __webpack_require__(2), INFO = __webpack_require__(17), STRING = __webpack_require__(24), EVENTS = null, PAGE_UNLOADED = false, MIDDLEWARE = CORE.middleware("libdom.event"), IE_CUSTOM_EVENTS = {}, ERROR_OBSERVABLE_NO_SUPPORT = STRING[1131], ERROR_INVALID_TYPE = STRING[1132], ERROR_INVALID_HANDLER = STRING[1133], IE_ON = "on", IE_BUBBLE_EVENT = "beforeupdate", IE_NO_BUBBLE_EVENT = "propertychange", EXPORTS = module.exports = {
                 on: listen,
                 un: unlisten,
                 fire: dispatch,
@@ -2289,7 +2443,7 @@
     }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
-            var CORE = __webpack_require__(2), STRING = __webpack_require__(23), DETECTED = __webpack_require__(16), DOM = __webpack_require__(24), COLOR = __webpack_require__(27), PADDING_BOTTOM = "paddingBottom", PADDING_TOP = "paddingTop", PADDING_LEFT = "paddingLeft", PADDING_RIGHT = "paddingRight", OFFSET_LEFT = "offsetLeft", OFFSET_TOP = "offsetTop", OFFSET_WIDTH = "offsetWidth", OFFSET_HEIGHT = "offsetHeight", CLIENT_WIDTH = "clientWidth", CLIENT_HEIGHT = "clientHeight", COLOR_RE = /[Cc]olor$/, EM_OR_PERCENT_RE = /%|em/, CSS_MEASUREMENT_RE = /^([0-9]*\.?[0-9]+|[0-9]+\.?[0-9]*)(em|px|\%|pt|vh|vw|cm|ex|in|mm|pc|vmin)$/, WIDTH_RE = /width/i, NUMBER_RE = /\d/, BOX_RE = /(top|bottom|left|right|width|height)$/, DIMENSION_RE = /([Tt]op|[Bb]ottom|[Ll]eft|[Rr]ight|[wW]idth|[hH]eight|Size|Radius)$/, IE_ALPHA_OPACITY_RE = /\(opacity\=([0-9]+)\)/i, IE_ALPHA_OPACITY_TEMPLATE = "alpha(opacity=$opacity)", IE_ALPHA_OPACITY_TEMPLATE_RE = /\$opacity/, GET_OPACITY = opacityNotSupported, SET_OPACITY = opacityNotSupported, SET_STYLE = styleManipulationNotSupported, GET_STYLE = styleManipulationNotSupported, ERROR_INVALID_DOM = STRING[1101], EXPORTS = {
+            var CORE = __webpack_require__(2), STRING = __webpack_require__(24), DETECTED = __webpack_require__(17), DOM = __webpack_require__(25), COLOR = __webpack_require__(28), PADDING_BOTTOM = "paddingBottom", PADDING_TOP = "paddingTop", PADDING_LEFT = "paddingLeft", PADDING_RIGHT = "paddingRight", OFFSET_LEFT = "offsetLeft", OFFSET_TOP = "offsetTop", OFFSET_WIDTH = "offsetWidth", OFFSET_HEIGHT = "offsetHeight", CLIENT_WIDTH = "clientWidth", CLIENT_HEIGHT = "clientHeight", COLOR_RE = /[Cc]olor$/, EM_OR_PERCENT_RE = /%|em/, CSS_MEASUREMENT_RE = /^([0-9]*\.?[0-9]+|[0-9]+\.?[0-9]*)(em|px|\%|pt|vh|vw|cm|ex|in|mm|pc|vmin)$/, WIDTH_RE = /width/i, NUMBER_RE = /\d/, BOX_RE = /(top|bottom|left|right|width|height)$/, DIMENSION_RE = /([Tt]op|[Bb]ottom|[Ll]eft|[Rr]ight|[wW]idth|[hH]eight|Size|Radius)$/, IE_ALPHA_OPACITY_RE = /\(opacity\=([0-9]+)\)/i, IE_ALPHA_OPACITY_TEMPLATE = "alpha(opacity=$opacity)", IE_ALPHA_OPACITY_TEMPLATE_RE = /\$opacity/, GET_OPACITY = opacityNotSupported, SET_OPACITY = opacityNotSupported, SET_STYLE = styleManipulationNotSupported, GET_STYLE = styleManipulationNotSupported, ERROR_INVALID_DOM = STRING[1101], EXPORTS = {
                 add: addClass,
                 remove: removeClass,
                 computedStyle: computedStyleNotSupported,
@@ -2665,12 +2819,12 @@
         }());
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var CORE = __webpack_require__(2), FORMAT = __webpack_require__(28), COLOR_RE = /^(\#?|rgba?|hsla?)(\(([^\,]+(\,[^\,]+){2,3})\)|[a-f0-9]{3}|[a-f0-9]{6})$/, NUMBER_RE = /^[0-9]*\.?[0-9]+|[0-9]+\.?[0-9]*$/, REMOVE_SPACES = /[ \r\n\t\s]+/g, TO_COLOR = {
-            rgb: __webpack_require__(29),
-            rgba: __webpack_require__(30),
-            hsl: __webpack_require__(31),
-            hsla: __webpack_require__(32),
-            hex: __webpack_require__(33)
+        var CORE = __webpack_require__(2), FORMAT = __webpack_require__(29), COLOR_RE = /^(\#?|rgba?|hsla?)(\(([^\,]+(\,[^\,]+){2,3})\)|[a-f0-9]{3}|[a-f0-9]{6})$/, NUMBER_RE = /^[0-9]*\.?[0-9]+|[0-9]+\.?[0-9]*$/, REMOVE_SPACES = /[ \r\n\t\s]+/g, TO_COLOR = {
+            rgb: __webpack_require__(30),
+            rgba: __webpack_require__(31),
+            hsl: __webpack_require__(32),
+            hsla: __webpack_require__(33),
+            hex: __webpack_require__(34)
         }, EXPORTS = {
             parse: parseColorString,
             parseType: parseType,
@@ -2779,7 +2933,7 @@
         }
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var RGBA = __webpack_require__(30), CORE = __webpack_require__(2), EXPORTS = module.exports = CORE.assign({}, RGBA);
+        var RGBA = __webpack_require__(31), CORE = __webpack_require__(2), EXPORTS = module.exports = CORE.assign({}, RGBA);
         function toString(integer) {
             return "rgb(" + RGBA.toArray(integer).slice(0, 3).join(",") + ")";
         }
@@ -2790,7 +2944,7 @@
         EXPORTS.toInteger = toInteger;
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var CORE = __webpack_require__(2), FORMAT = __webpack_require__(28), BYTE = 255, BYTE_PERCENT = 127, BYTE_HUE = 511, PERCENT = 100, HUE = 360, SATURATION = PERCENT, LUMINOSITY = PERCENT;
+        var CORE = __webpack_require__(2), FORMAT = __webpack_require__(29), BYTE = 255, BYTE_PERCENT = 127, BYTE_HUE = 511, PERCENT = 100, HUE = 360, SATURATION = PERCENT, LUMINOSITY = PERCENT;
         function hue2rgb(p, q, t) {
             t = (t + 1) % 1;
             switch (true) {
@@ -2870,7 +3024,7 @@
         };
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var HSLA = __webpack_require__(31), CORE = __webpack_require__(2), EXPORTS = module.exports = CORE.assign({}, HSLA);
+        var HSLA = __webpack_require__(32), CORE = __webpack_require__(2), EXPORTS = module.exports = CORE.assign({}, HSLA);
         function toString(integer) {
             var values = HSLA.toArray(integer).slice(0, 3);
             values[1] += "%";
@@ -2880,7 +3034,7 @@
         EXPORTS.toString = toString;
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var CORE = __webpack_require__(2), FORMAT = __webpack_require__(28), BYTE = 255, BYTE_PERCENT = 127, BYTE_HUE = 511, HUE = 360, PERCENT = 100;
+        var CORE = __webpack_require__(2), FORMAT = __webpack_require__(29), BYTE = 255, BYTE_PERCENT = 127, BYTE_HUE = 511, HUE = 360, PERCENT = 100;
         function itemize(value, index, format) {
             var F = FORMAT, M = Math, percent = PERCENT, parse = parseFloat, min = 0, max = index < 1 ? HUE : percent;
             switch (format) {
@@ -2927,7 +3081,7 @@
         };
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var RGBA = __webpack_require__(30), CORE = __webpack_require__(2), EXPORTS = module.exports = CORE.assign({}, RGBA);
+        var RGBA = __webpack_require__(31), CORE = __webpack_require__(2), EXPORTS = module.exports = CORE.assign({}, RGBA);
         function toHex(integer) {
             var M = Math;
             integer = M.max(0, M.min(integer, 255));
@@ -2944,7 +3098,7 @@
     }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
-            var CORE = __webpack_require__(2), DETECTED = __webpack_require__(16), STRING = __webpack_require__(23), DOM = __webpack_require__(24), CSS = __webpack_require__(26), ERROR_INVALID_ELEMENT = STRING[1101], ERROR_INVALID_DOM = STRING[1102], OFFSET_TOP = "offsetTop", OFFSET_LEFT = "offsetLeft", OFFSET_WIDTH = "offsetWidth", OFFSET_HEIGHT = "offsetHeight", MARGIN_TOP = "marginTop", MARGIN_LEFT = "marginLeft", SCROLL_TOP = "scrollTop", SCROLL_LEFT = "scrollLeft", BOUNDING_RECT = "getBoundingClientRect", DEFAULTVIEW = null, ELEMENT_VIEW = 1, PAGE_VIEW = 2, USE_ZOOM_FACTOR = false, IE_PAGE_STAT_ACCESS = "documentElement", boundingRect = false, getPageScroll = null, getOffset = null, getSize = null, getScreenSize = null, EXPORTS = {
+            var CORE = __webpack_require__(2), DETECTED = __webpack_require__(17), STRING = __webpack_require__(24), DOM = __webpack_require__(25), CSS = __webpack_require__(27), ERROR_INVALID_ELEMENT = STRING[1101], ERROR_INVALID_DOM = STRING[1102], OFFSET_TOP = "offsetTop", OFFSET_LEFT = "offsetLeft", OFFSET_WIDTH = "offsetWidth", OFFSET_HEIGHT = "offsetHeight", MARGIN_TOP = "marginTop", MARGIN_LEFT = "marginLeft", SCROLL_TOP = "scrollTop", SCROLL_LEFT = "scrollLeft", BOUNDING_RECT = "getBoundingClientRect", DEFAULTVIEW = null, ELEMENT_VIEW = 1, PAGE_VIEW = 2, USE_ZOOM_FACTOR = false, IE_PAGE_STAT_ACCESS = "documentElement", boundingRect = false, getPageScroll = null, getOffset = null, getSize = null, getScreenSize = null, EXPORTS = {
                 offset: offset,
                 size: size,
                 box: box,
@@ -3252,7 +3406,7 @@
     }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
-            var DETECTED = __webpack_require__(16), STRING = __webpack_require__(23), DOM = __webpack_require__(24), DIMENSION = __webpack_require__(34), DETECTED_DOM = DETECTED.dom, DETECTED_SELECTION = DETECTED.selection, ERROR_DOM = STRING[1102], SELECT_ELEMENT = null, CLEAR_SELECTION = null, UNSELECTABLE = attributeUnselectable, CSS_UNSELECT = DETECTED_SELECTION.cssUnselectable, EXPORTS = {
+            var DETECTED = __webpack_require__(17), STRING = __webpack_require__(24), DOM = __webpack_require__(25), DIMENSION = __webpack_require__(35), DETECTED_DOM = DETECTED.dom, DETECTED_SELECTION = DETECTED.selection, ERROR_DOM = STRING[1102], SELECT_ELEMENT = null, CLEAR_SELECTION = null, UNSELECTABLE = attributeUnselectable, CSS_UNSELECT = DETECTED_SELECTION.cssUnselectable, EXPORTS = {
                 select: select,
                 clear: clear,
                 unselectable: unselectable
@@ -3352,7 +3506,7 @@
         }());
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var STRING = __webpack_require__(23), CORE = __webpack_require__(2), EASING = __webpack_require__(37), COLOR = __webpack_require__(27), CSS = __webpack_require__(26), DIMENSION = __webpack_require__(34), SESSION_ACCESS = "__animate_session", BOX_POSITION = {
+        var STRING = __webpack_require__(24), CORE = __webpack_require__(2), EASING = __webpack_require__(38), COLOR = __webpack_require__(28), CSS = __webpack_require__(27), DIMENSION = __webpack_require__(35), SESSION_ACCESS = "__animate_session", BOX_POSITION = {
             left: 0,
             top: 1,
             right: 2,
@@ -3721,7 +3875,7 @@
         module.exports = EXPORTS.chain = EXPORTS;
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var LIBCORE = __webpack_require__(2), TYPES = __webpack_require__(40), TRANSFORMERS = LIBCORE.createRegistry(), REQUEST_PREFIX = "request-", RESPONSE_PREFIX = "response-", EXPORTS = {
+        var LIBCORE = __webpack_require__(2), TYPES = __webpack_require__(41), TRANSFORMERS = LIBCORE.createRegistry(), REQUEST_PREFIX = "request-", RESPONSE_PREFIX = "response-", EXPORTS = {
             register: register,
             transform: transform
         };
@@ -3766,11 +3920,11 @@
             return [ null, data ];
         }
         module.exports = EXPORTS.chain = EXPORTS;
-        item = __webpack_require__(41);
+        item = __webpack_require__(42);
         register("application/json", false, item).register("text/x-json", false, item);
-        item = __webpack_require__(43);
+        item = __webpack_require__(44);
         register("application/json", true, item).register("text/x-json", true, item);
-        register("application/x-www-form-urlencoded", false, __webpack_require__(44)).register("multipart/form-data", false, __webpack_require__(45));
+        register("application/x-www-form-urlencoded", false, __webpack_require__(45)).register("multipart/form-data", false, __webpack_require__(46));
     }, function(module, exports, __webpack_require__) {
         "use strict";
         var LIBCORE = __webpack_require__(2), MIME_TYPE_RE = /^([a-z0-9\-\_]+)\/([a-z\-\_0-9]+)(([ \s\t]*\;([^\;]+))*)$/, MIME_TYPE_PARAMS_RE = /^[ \t\s]*([a-z0-9\-\_]+)\=(\"([^\"]+)\"|[a-z0-9\-\_]+)[ \t\s]*$/, QUOTED_RE = /^\"[^\"]+\"/, EXPORTS = {
@@ -3813,7 +3967,7 @@
         module.exports = EXPORTS;
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var LIBCORE = __webpack_require__(2), HELP = __webpack_require__(42);
+        var LIBCORE = __webpack_require__(2), HELP = __webpack_require__(43);
         function createValue(operation, name, value, type, fieldType) {
             var CORE = LIBCORE, items = operation.returnValue, isField = type === "field";
             if (isField) {
@@ -3828,7 +3982,7 @@
                 value = HELP.jsonify(value);
             }
             if (isField || type === "field-options") {
-                CORE.fillJson(items, name, value);
+                CORE.urlFill(items, name, value);
             } else {
                 items[name] = value;
             }
@@ -3845,7 +3999,7 @@
     }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
-            var LIBDOM = __webpack_require__(14), LIBCORE = __webpack_require__(2), TYPE_OBJECT = 1, TYPE_ARRAY = 2;
+            var LIBDOM = __webpack_require__(15), LIBCORE = __webpack_require__(2), TYPE_OBJECT = 1, TYPE_ARRAY = 2;
             function isForm(form) {
                 return LIBDOM.is(form, 1) && form.tagName.toUpperCase() === "FORM";
             }
@@ -4003,7 +4157,7 @@
         }());
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var HELP = __webpack_require__(42);
+        var HELP = __webpack_require__(43);
         function createValue(operation, name, value, type, fieldType) {
             var items = operation.returnValue;
             if (type === "field") {
@@ -4028,7 +4182,7 @@
         module.exports = convert;
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var HELP = __webpack_require__(42), EOL = "\r\n", BOUNDARY_LENGTH = 48;
+        var HELP = __webpack_require__(43), EOL = "\r\n", BOUNDARY_LENGTH = 48;
         function createBoundary() {
             var ender = Math.random().toString().substr(2), output = [], len = 0, total = BOUNDARY_LENGTH - ender.length;
             for (;total--; ) {
@@ -4064,7 +4218,7 @@
         module.exports = convert;
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var LIBCORE = __webpack_require__(2), DRIVER = __webpack_require__(38), OPERATION = __webpack_require__(47), HELP = __webpack_require__(42), DEFAULTS = LIBCORE.createRegistry(), METHODS = [ "get", "post", "put", "patch", "delete", "options" ], EXPORTS = {
+        var LIBCORE = __webpack_require__(2), DRIVER = __webpack_require__(39), OPERATION = __webpack_require__(48), HELP = __webpack_require__(43), DEFAULTS = LIBCORE.createRegistry(), METHODS = [ "get", "post", "put", "patch", "delete", "options" ], ALLOWED_PAYLOAD = [ "post", "put", "patch" ], EXPORTS = {
             request: request,
             defaults: accessDefaults
         };
@@ -4112,12 +4266,17 @@
             requestObject.data = form;
         }
         function applyRequestConfig(config, requestObject) {
-            var CORE = LIBCORE, isString = CORE.string, data = config.form || config.data || config.params || config.body;
+            var CORE = LIBCORE, isString = CORE.string, help = HELP, undef = void 0;
             var item;
-            if (HELP.form(data)) {
-                applyRequestForm(data, requestObject);
-            } else if (data !== null || data !== void 0) {
-                requestObject.data = data;
+            item = config.form || config.data || config.params || config.body;
+            if (help.form(item)) {
+                applyRequestForm(item, requestObject);
+            } else if (item !== null || item !== undef) {
+                requestObject.item = item;
+            }
+            item = config.query || config.urlData || config.urlParams;
+            if (help.form(item) || item !== null && item !== undef) {
+                requestObject.query = item;
             }
             item = config.url;
             if (isString(item)) {
@@ -4137,7 +4296,7 @@
             }
             requestObject.addHeaders(config.headers);
             requestObject.config = config;
-            data = null;
+            item = null;
         }
         function request(url, config) {
             var CORE = LIBCORE, H = HELP, isString = CORE.string, isObject = CORE.object, applyConfig = applyRequestConfig, requestObject = new OPERATION(), PROMISE = Promise;
@@ -4154,6 +4313,9 @@
                 applyConfig(url, requestObject);
             } else if (H.form(url)) {
                 applyRequestForm(url, requestObject);
+            }
+            if (ALLOWED_PAYLOAD.indexOf(requestObject.method) === -1) {
+                requestObject.allowedPayload = false;
             }
             if (isString(requestObject.url)) {
                 driver = sniffDriver(requestObject);
@@ -4185,7 +4347,18 @@
         });
     }, function(module, exports, __webpack_require__) {
         "use strict";
-        var LIBCORE = __webpack_require__(2), LIBDOM = __webpack_require__(14), HEADER = __webpack_require__(48), TRANSFORMER = __webpack_require__(39), CLEANING = false, CLEAN_INTERVAL = 1e3, TTL = 1e4, RUNNING = false, OPERATIONS = [];
+        var LIBCORE = __webpack_require__(2), LIBDOM = __webpack_require__(15), HEADER = __webpack_require__(49), TRANSFORMER = __webpack_require__(40), CLEANING = false, CLEAN_INTERVAL = 1e3, TTL = 1e4, RUNNING = false, OPERATIONS = [], URL_QUERY_STRING_RE = /^([^\?\#]+)(\?[^\?\#]*)?(\#.*)?$/;
+        function applyQueryString(url, queryString) {
+            var match = url.match(URL_QUERY_STRING_RE);
+            var query;
+            if (match && LIBCORE.string(queryString)) {
+                query = match[2];
+                match[2] = (query ? query + "&" : "?") + queryString;
+                match[3] = match[3] || "";
+                return match.slice(1).join("");
+            }
+            return url;
+        }
         function onCleanup(force) {
             var list = OPERATIONS, id = RUNNING;
             var len, operation, now, ttl, created;
@@ -4318,6 +4491,25 @@
             aborted: false,
             timeout: 0,
             config: null,
+            queryTransformer: "application/x-www-form-urlencoded",
+            queryAllowed: true,
+            allowedPayload: true,
+            getUrl: function() {
+                var me = this, isString = LIBCORE.string, transform = TRANSFORMER.transform, url = me.url, query = me.query, data = me.data, transformerType = me.queryTransformer, apply = applyQueryString;
+                if (me.queryAllowed && isString(url) && isString(transformerType)) {
+                    query = transform(transformerType, false, query)[1];
+                    if (isString(query)) {
+                        url = apply(url, query);
+                    }
+                    if (me.allowedPayload === false) {
+                        data = transform(transformerType, false, data)[1];
+                        if (isString(data)) {
+                            url = apply(url, data);
+                        }
+                    }
+                }
+                return url;
+            },
             settings: function(name) {
                 var config = this.config, CORE = LIBCORE;
                 if (CORE.object(config) && CORE.contains(config, name)) {
@@ -4330,7 +4522,11 @@
                 if (headers) {
                     me.addHeaders(headers);
                 }
-                me.body = result[1];
+                if (me.allowedPayload === false) {
+                    delete me.body;
+                } else {
+                    me.body = result[1];
+                }
                 if (response) {
                     response.destroy();
                 }
@@ -4340,6 +4536,7 @@
                 }
                 response.request = me;
                 response.begin();
+                result = null;
             }
         });
         Response.prototype = LIBCORE.instantiate(Operation, {
@@ -4477,7 +4674,7 @@
     }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
-            var LIBCORE = __webpack_require__(2), BASE = __webpack_require__(50), MIDDLEWARE = LIBCORE.middleware("libdom-http.driver.xhr"), STATE_UNSENT = 0, STATE_OPENED = 1, STATE_HEADERS_RECEIVED = 2, STATE_LOADING = 3, STATE_DONE = 4, BASE_PROTOTYPE = BASE.prototype;
+            var LIBCORE = __webpack_require__(2), BASE = __webpack_require__(51), MIDDLEWARE = LIBCORE.middleware("libdom-http.driver.xhr"), STATE_UNSENT = 0, STATE_OPENED = 1, STATE_HEADERS_RECEIVED = 2, STATE_LOADING = 3, STATE_DONE = 4, BASE_PROTOTYPE = BASE.prototype;
             function applyHeader(value, name) {
                 var me = this;
                 var c, l;
@@ -4536,7 +4733,7 @@
                     request.xhrTransport = xhr;
                     run("before:setup", args);
                     xhr.onreadystatechange = me.onReadyStateChange;
-                    xhr.open(request.method.toUpperCase(), request.url, true);
+                    xhr.open(request.method.toUpperCase(), request.getUrl(), true);
                     run("after:setup", args);
                     xhr = args = args[0] = args[1] = null;
                 },
@@ -4656,7 +4853,7 @@
     }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
-            var LIBCORE = __webpack_require__(2), LIBDOM = __webpack_require__(14), DETECT = __webpack_require__(13), MIDDLEWARE = LIBCORE.middleware("libdom-http.driver.xhr"), register = MIDDLEWARE.register, BEFORE_REQUEST = "before:request", XHR = __webpack_require__(49), PROTOTYPE = XHR.prototype, BINDS = PROTOTYPE.bindMethods, BIND_LENGTH = BINDS.length, PROGRESS = DETECT.xhrbytes, features = 0;
+            var LIBCORE = __webpack_require__(2), LIBDOM = __webpack_require__(15), DETECT = __webpack_require__(14), MIDDLEWARE = LIBCORE.middleware("libdom-http.driver.xhr"), register = MIDDLEWARE.register, BEFORE_REQUEST = "before:request", XHR = __webpack_require__(50), PROTOTYPE = XHR.prototype, BINDS = PROTOTYPE.bindMethods, BIND_LENGTH = BINDS.length, PROGRESS = DETECT.xhrbytes, features = 0;
             function addTimeout(instance, request) {
                 var timeout = request.settings("timeout");
                 if (LIBCORE.number(timeout) && timeout > 10) {
@@ -4738,7 +4935,7 @@
     }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
-            var LIBCORE = __webpack_require__(2), HELP = __webpack_require__(42);
+            var LIBCORE = __webpack_require__(2), HELP = __webpack_require__(43);
             function appendFormData(operation, name, value, type, fieldType) {
                 var formData = operation.returnValue, isString = LIBCORE.string;
                 var list, c, l, filename;
@@ -4779,7 +4976,7 @@
     }, function(module, exports, __webpack_require__) {
         (function(global) {
             "use strict";
-            var LIBCORE = __webpack_require__(2), LIBDOM = __webpack_require__(14), HELP = __webpack_require__(42), BASE = __webpack_require__(50), BASE_PROTOTYPE = BASE.prototype, RESPONSE_TRIM = /(^<pre>|<\/pre>$)/gi, FILE_UPLOAD_GEN = 0;
+            var LIBCORE = __webpack_require__(2), LIBDOM = __webpack_require__(15), HELP = __webpack_require__(43), BASE = __webpack_require__(51), BASE_PROTOTYPE = BASE.prototype, RESPONSE_TRIM = /(^<pre>|<\/pre>$)/gi, FILE_UPLOAD_GEN = 0;
             function createForm(method, url, contentType, blankDocument) {
                 var doc = global.document, id = "libdom-http-oldschool-form" + ++FILE_UPLOAD_GEN, div = doc.createElement("div");
                 var iframe;
@@ -4897,7 +5094,7 @@
                     iframe = null;
                 },
                 onSetup: function(request) {
-                    var me = this, CORE = LIBCORE, impostors = [], id = createForm(request.method, request.url, request.contentType, me.blankDocument), form = getForm(id), operation = {
+                    var me = this, CORE = LIBCORE, impostors = [], id = createForm(request.method, request.getUrl(), request.contentType, me.blankDocument), form = getForm(id), operation = {
                         impostors: impostors,
                         fragment: global.document.createDocumentFragment(),
                         files: false,

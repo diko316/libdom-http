@@ -232,7 +232,7 @@ FormUpload.prototype = LIBCORE.instantiate(BASE, {
             CORE = LIBCORE,
             impostors = [],
             id = createForm(request.method,
-                            request.url,
+                            request.getUrl(),
                             request.contentType,
                             me.blankDocument),
             form = getForm(id),

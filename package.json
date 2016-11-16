@@ -1,6 +1,6 @@
 {
   "name": "libdom-http",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Http support for libdom",
   "main": "dist/index.js",
   "scripts": {
@@ -53,7 +53,7 @@
     "webpack-hot-middleware": "^2.12.2"
   },
   "dependencies": {
-    "libcore": "0.2.6",
-    "libdom": "0.3.6"
+    "libcore": "0.2.7",
+    "libdom": "0.3.7"
   }
 }

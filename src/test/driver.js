@@ -93,19 +93,25 @@ dom.add(global.document.body, {
 dom.add(global.document.body, {
     tag: 'form',
     action: 'data.json',
-    method: 'post',
+    method: 'get',
     onsubmit: function (event) {
         event.preventDefault();
 
         // test submit form
-        http.request("data.json", event.target);
+        http.request("data.json", event.target).
+            then(function(data) {
+                console.log('gud!', data);
+            },
+            function (error) {
+                console.log('failed!' , error);
+            });
         
     },
     
     childNodes: [{
         childNodes: [{
             tag: 'label',
-            text: 'text'
+            text: 'get ni!'
         },
         {
             tag: 'input',
@@ -139,6 +145,7 @@ dom.add(global.document.body, {
     
 });
 
+console.log('URL: ', global.URL);
 
 // test application/json
 dom.add(global.document.body, {

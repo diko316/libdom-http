@@ -8,7 +8,24 @@ var LIBCORE = require("libcore"),
     CLEAN_INTERVAL = 1000,
     TTL = 10000,
     RUNNING = false,
-    OPERATIONS = [];
+    OPERATIONS = [],
+    URL_QUERY_STRING_RE = /^([^\?\#]+)(\?[^\?\#]*)?(\#.*)?$/;
+    
+function applyQueryString(url, queryString) {
+    var match = url.match(URL_QUERY_STRING_RE);
+    var query;
+    
+    if (match && LIBCORE.string(queryString)) {
+        query = match[2];
+        match[2] = (query ? query + '&' : '?') + queryString;
+        match[3] = match[3] || '';
+        return match.slice(1).join('');
+    }
+    
+    return url;
+}
+
+
 
 function onCleanup(force) {
     var list = OPERATIONS,
@@ -186,6 +203,39 @@ Request.prototype = LIBCORE.instantiate(Operation, {
     aborted: false,
     timeout: 0,
     config: null,
+    queryTransformer: 'application/x-www-form-urlencoded',
+    queryAllowed: true,
+    allowedPayload: true,
+    
+    getUrl: function () {
+        var me = this,
+            isString = LIBCORE.string,
+            transform = TRANSFORMER.transform,
+            url = me.url,
+            query = me.query,
+            data = me.data,
+            transformerType = me.queryTransformer,
+            apply = applyQueryString;
+            
+        
+        if (me.queryAllowed && isString(url) && isString(transformerType)) {
+            // transform url
+            query = transform(transformerType, false, query)[1];
+            if (isString(query)) {
+                url = apply(url, query);
+            }
+            
+            // should include body as query string
+            if (me.allowedPayload === false) {
+                data = transform(transformerType, false, data)[1];
+                
+                if (isString(data)) {
+                    url = apply(url, data);
+                }
+            }
+        }
+        return url;
+    },
     
     settings: function (name) {
         var config = this.config,
@@ -211,7 +261,12 @@ Request.prototype = LIBCORE.instantiate(Operation, {
             me.addHeaders(headers);
         }
         
-        me.body = result[1];
+        if (me.allowedPayload === false) {
+            delete me.body;
+        }
+        else {
+            me.body = result[1];
+        }
         
         // create response
         if (response) {
@@ -226,6 +281,8 @@ Request.prototype = LIBCORE.instantiate(Operation, {
         }
         response.request = me;
         response.begin();
+        
+        result = null;
     }
 });
 

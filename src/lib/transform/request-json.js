@@ -28,7 +28,7 @@ function createValue(operation, name, value, type, fieldType) {
     if ((isField || type === 'field-options')) {
         
         // use libcore to fill-in json
-        CORE.fillJson(items, name, value);
+        CORE.urlFill(items, name, value);
         
     }
     else {

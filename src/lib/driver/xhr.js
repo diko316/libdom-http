@@ -96,9 +96,9 @@ Xhr.prototype = LIBCORE.instantiate(BASE, {
         request.xhrTransport = xhr;
         
         run("before:setup", args);
-
+        
         xhr.onreadystatechange = me.onReadyStateChange;
-        xhr.open(request.method.toUpperCase(), request.url, true);
+        xhr.open(request.method.toUpperCase(), request.getUrl(), true);
         
         
         run("after:setup", args);

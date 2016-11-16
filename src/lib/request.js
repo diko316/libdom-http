@@ -6,6 +6,7 @@ var LIBCORE = require("libcore"),
     HELP = require("./transform/helper.js"),
     DEFAULTS = LIBCORE.createRegistry(),
     METHODS = ['get','post','put','patch','delete','options'],
+    ALLOWED_PAYLOAD = ['post', 'put', 'patch'],
     EXPORTS = {
         request: request,
         defaults: accessDefaults
@@ -77,15 +78,22 @@ function applyRequestForm(form, requestObject) {
 function applyRequestConfig(config, requestObject) {
     var CORE = LIBCORE,
         isString = CORE.string,
-        data = config.form || config.data || config.params || config.body;
+        help = HELP,
+        undef = void(0);
     var item;
     
     // apply defaults
-    if (HELP.form(data)) {
-        applyRequestForm(data, requestObject);
+    item = config.form || config.data || config.params || config.body;
+    if (help.form(item)) {
+        applyRequestForm(item, requestObject);
     }
-    else if (data !== null || data !== void(0)) {
-        requestObject.data = data;
+    else if (item !== null || item !== undef) {
+        requestObject.item = item;
+    }
+    
+    item = config.query || config.urlData || config.urlParams;
+    if (help.form(item) || (item !== null && item !== undef)) {
+        requestObject.query = item;
     }
     
     item = config.url;
@@ -113,7 +121,7 @@ function applyRequestConfig(config, requestObject) {
     
     requestObject.config = config;
     
-    data = null;
+    item = null;
 }
 
 
@@ -148,6 +156,11 @@ function request(url, config) {
     }
     else if (H.form(url)) {
         applyRequestForm(url, requestObject);
+    }
+    
+    // decide if body is allowed or not based from methods
+    if (ALLOWED_PAYLOAD.indexOf(requestObject.method) === -1) {
+        requestObject.allowedPayload = false;
     }
     
     
