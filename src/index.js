@@ -76,6 +76,9 @@ rehash(EXPORTS,
 
 TRANSFORMER.chain =
     DRIVER.chain = EXPORTS;
+    
+    
+global.libdom.http = EXPORTS;
 
 module.exports = EXPORTS['default'] = EXPORTS;
 

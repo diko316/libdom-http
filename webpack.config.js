@@ -11,6 +11,7 @@ var PATH = require('path'),
     sourcePath = PATH.join(buildDirectory, 'src'),
     hasOwn = Object.prototype.hasOwnProperty,
     entry = {},
+    externals = {},
     DISABLE_HOT_IE = true,
     //DISABLE_HOT_IE = false,
     plugins = [
@@ -54,6 +55,13 @@ case "compressed":
                 new webpack.optimize.UglifyJsPlugin({
                     
                 }));
+    
+    // externals
+    externals = {
+        "libdom": {
+            umd: "libdom"
+        }
+    };
     break;
 
 default:
@@ -94,6 +102,8 @@ module.exports = {
         libraryTarget: 'umd',
         umdNamedDefine: true
     },
+    
+    externals: externals,
 
     devTool: 'eval',
 

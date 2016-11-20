@@ -21,36 +21,41 @@
     }([ function(module, exports, __webpack_require__) {
         module.exports = __webpack_require__(1);
     }, function(module, exports, __webpack_require__) {
-        "use strict";
-        var LIBCORE = __webpack_require__(2), DETECT = __webpack_require__(14), DRIVER = __webpack_require__(39), TRANSFORMER = __webpack_require__(40), REQUEST = __webpack_require__(47), rehash = LIBCORE.rehash, driverRegister = DRIVER.register, transformRegister = TRANSFORMER.register, EXPORTS = REQUEST.request;
-        if (DETECT.xhr) {
-            driverRegister("xhr", __webpack_require__(50));
-            driverRegister("xhr2", __webpack_require__(52));
-        }
-        transformRegister("text/plain", true, __webpack_require__(53));
-        if (DETECT.formdata) {
-            transformRegister("multipart/form-data", false, __webpack_require__(54));
-        }
-        if (LIBCORE.env.browser) {
-            driverRegister("form-upload", DETECT.xhr && DETECT.file && DETECT.blob ? __webpack_require__(52) : __webpack_require__(55));
-        }
-        rehash(EXPORTS, REQUEST, {
-            request: "request"
-        });
-        rehash(EXPORTS, DRIVER, {
-            driver: "register",
-            use: "use"
-        });
-        rehash(EXPORTS, __webpack_require__(49), {
-            parseHeader: "parse",
-            eachHeader: "each"
-        });
-        rehash(EXPORTS, TRANSFORMER, {
-            transformer: "register",
-            transform: "transform"
-        });
-        TRANSFORMER.chain = DRIVER.chain = EXPORTS;
-        module.exports = EXPORTS["default"] = EXPORTS;
+        (function(global) {
+            "use strict";
+            var LIBCORE = __webpack_require__(2), DETECT = __webpack_require__(14), DRIVER = __webpack_require__(39), TRANSFORMER = __webpack_require__(40), REQUEST = __webpack_require__(47), rehash = LIBCORE.rehash, driverRegister = DRIVER.register, transformRegister = TRANSFORMER.register, EXPORTS = REQUEST.request;
+            if (DETECT.xhr) {
+                driverRegister("xhr", __webpack_require__(50));
+                driverRegister("xhr2", __webpack_require__(52));
+            }
+            transformRegister("text/plain", true, __webpack_require__(53));
+            if (DETECT.formdata) {
+                transformRegister("multipart/form-data", false, __webpack_require__(54));
+            }
+            if (LIBCORE.env.browser) {
+                driverRegister("form-upload", DETECT.xhr && DETECT.file && DETECT.blob ? __webpack_require__(52) : __webpack_require__(55));
+            }
+            rehash(EXPORTS, REQUEST, {
+                request: "request"
+            });
+            rehash(EXPORTS, DRIVER, {
+                driver: "register",
+                use: "use"
+            });
+            rehash(EXPORTS, __webpack_require__(49), {
+                parseHeader: "parse",
+                eachHeader: "each"
+            });
+            rehash(EXPORTS, TRANSFORMER, {
+                transformer: "register",
+                transform: "transform"
+            });
+            TRANSFORMER.chain = DRIVER.chain = EXPORTS;
+            global.libdom.http = EXPORTS;
+            module.exports = EXPORTS["default"] = EXPORTS;
+        }).call(exports, function() {
+            return this;
+        }());
     }, function(module, exports, __webpack_require__) {
         "use strict";
         module.exports = __webpack_require__(3);
