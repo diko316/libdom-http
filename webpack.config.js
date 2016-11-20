@@ -40,6 +40,12 @@ case "production":
                 comments: false,
                 sourceMap: false
             }));
+    // externals
+    externals = {
+        "libdom": {
+            umd: "libdom"
+        }
+    };
     break;
 
 case "compressed":

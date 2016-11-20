@@ -11,6 +11,11 @@ var LIBCORE = require("libcore"),
     EXPORTS = REQUEST.request;
 
 
+if (!global.libdom) {
+    throw new Error("libdom package is not found! unable to load http module");
+}
+
+global.libdom.http = EXPORTS;
 
 // xhr
 if (DETECT.xhr) {
@@ -77,8 +82,7 @@ rehash(EXPORTS,
 TRANSFORMER.chain =
     DRIVER.chain = EXPORTS;
     
-    
-global.libdom.http = EXPORTS;
+
 
 module.exports = EXPORTS['default'] = EXPORTS;
 
