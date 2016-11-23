@@ -42,6 +42,9 @@ case "production":
             }));
     // externals
     externals = {
+        "libcore": {
+            umd: "libcore"
+        },
         "libdom": {
             umd: "libdom"
         }
@@ -64,6 +67,9 @@ case "compressed":
     
     // externals
     externals = {
+        "libcore": {
+            umd: "libcore"
+        },
         "libdom": {
             umd: "libdom"
         }

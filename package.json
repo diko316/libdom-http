@@ -1,6 +1,6 @@
 {
   "name": "libdom-http",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "Http support for libdom",
   "main": "dist/index.js",
   "scripts": {
@@ -54,6 +54,6 @@
   },
   "dependencies": {
     "libcore": "0.2.7",
-    "libdom": "0.3.7"
+    "libdom": "0.4.0"
   }
 }
