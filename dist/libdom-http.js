@@ -524,7 +524,7 @@
             if (help.form(item)) {
                 applyRequestForm(item, requestObject);
             } else if (item !== null || item !== undef) {
-                requestObject.item = item;
+                requestObject.data = item;
             }
             item = config.query || config.urlData || config.urlParams;
             if (help.form(item) || item !== null && item !== undef) {
