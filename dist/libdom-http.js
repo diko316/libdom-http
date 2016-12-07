@@ -40,7 +40,8 @@
                 driverRegister("form-upload", DETECT.xhr && DETECT.file && DETECT.blob ? __webpack_require__(18) : __webpack_require__(21));
             }
             rehash(EXPORTS, REQUEST, {
-                request: "request"
+                request: "request",
+                defaults: "defaults"
             });
             rehash(EXPORTS, DRIVER, {
                 driver: "register",
