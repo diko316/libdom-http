@@ -40,7 +40,8 @@
                 driverRegister("form-upload", DETECT.xhr && DETECT.file && DETECT.blob ? __webpack_require__(18) : __webpack_require__(21));
             }
             rehash(EXPORTS, REQUEST, {
-                request: "request"
+                request: "request",
+                defaults: "defaults"
             });
             rehash(EXPORTS, DRIVER, {
                 driver: "register",
@@ -524,7 +525,7 @@
             if (help.form(item)) {
                 applyRequestForm(item, requestObject);
             } else if (item !== null || item !== undef) {
-                requestObject.item = item;
+                requestObject.data = item;
             }
             item = config.query || config.urlData || config.urlParams;
             if (help.form(item) || item !== null && item !== undef) {

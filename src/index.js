@@ -54,7 +54,8 @@ if (LIBCORE.env.browser) {
 
 // create api
 rehash(EXPORTS, REQUEST, {
-        "request": "request"
+        "request": "request",
+        "defaults": "defaults"
     });
 
 rehash(EXPORTS,
