@@ -547,7 +547,7 @@
             if (isString(item)) {
                 requestObject.responseType = item;
             }
-            requestObject.addHeaders(config.headers);
+            requestObject.addHeaders("headers" in config && config.headers);
             requestObject.config = config;
             item = null;
         }
@@ -1318,7 +1318,7 @@
                     var me = this, DOM = LIBDOM, request = me.request, form = request.form;
                     DOM.un(form, "libdom-http-ready", me.onFormReady);
                     form.enctype = form.encoding = request.contentType;
-                    request.deferredSubmit = setTimeout(me.onFormDeferredSubmit, 10);
+                    request.deferredSubmit = global.setTimeout(me.onFormDeferredSubmit, 10);
                     form = null;
                 },
                 onFormDeferredSubmit: function() {

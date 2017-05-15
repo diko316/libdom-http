@@ -176,7 +176,7 @@ FormUpload.prototype = LIBCORE.instantiate(BASE, {
         
         form.enctype = form.encoding = request.contentType;
         
-        request.deferredSubmit = setTimeout(me.onFormDeferredSubmit, 10);
+        request.deferredSubmit = global.setTimeout(me.onFormDeferredSubmit, 10);
         
         form = null;
         

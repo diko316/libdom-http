@@ -117,7 +117,7 @@ function applyRequestConfig(config, requestObject) {
     }
     
     // add headers
-    requestObject.addHeaders(config.headers);
+    requestObject.addHeaders('headers' in config && config.headers);
     
     requestObject.config = config;
     

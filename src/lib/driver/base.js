@@ -102,7 +102,6 @@ Driver.prototype = {
         
         // process response
         me.onSuccess(request, status);
-        
         response.process();
         
         // end request and response
