@@ -1,4 +1,4 @@
-FROM diko316/alnode
+FROM diko316/alnode-firefox:firefox-v1.1
 
 EXPOSE 8000
 

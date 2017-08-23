@@ -6,4 +6,4 @@ global.main = main;
 
 module.exports = main;
 
-require("./test/driver.js");
+require("./demo/driver.js");

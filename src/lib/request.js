@@ -31,7 +31,7 @@ function sniffDriver(config) {
     LIBCORE.run("libdom-http.driver.resolve", [config, driver]);
     driver = config.driver;
     
-    if (mgr.exists(driver)) {
+    if (LIBCORE.string(driver) && mgr.exists(driver)) {
         return driver;
     }
     

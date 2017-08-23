@@ -2,7 +2,7 @@ version: '2'
 
 services:
 
-  libdom_http:
+  server:
     build: .
     image: libdom-http:latest
     container_name: "libdom-http-test"
@@ -15,16 +15,17 @@ services:
     ports:
       - "3000:3000"
       
-  libdom_http_builder:
+  builder:
     image: libdom-http:latest
     container_name: "libdom-http-builder"
     command: bin/autosync-builds.sh
     
     environment:
-     - BUILD_MODE=production
+     - BUILD_MODE=development
      - SOURCE_MOD_PATH=/opt/app-source-modification
   
     volumes:
+      - ./docs:/opt/app/docs
       - ./dist:/opt/app/dist
       - .:/opt/app-source:ro
       - .:/opt/app-source-modification:rw
