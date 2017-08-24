@@ -18,8 +18,8 @@ module.exports = function(config) {
 
     // list of files / patterns to load in the browser
     files: [
-        'node_modules/libcore/dist/libcore.min.js',
-        'node_modules/libdom/dist/libdom.min.js',
+        'node_modules/libcore/dist/libcore.js',
+        'node_modules/libdom/dist/libdom.js',
         'src/test/index.js'
     ],
 

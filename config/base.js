@@ -1,7 +1,7 @@
 'use strict';
 
 var PATH = require('path'),
-    webpack = require("webpack"),
+    //webpack = require("webpack"),
     CustomVarLibraryNamePlugin = require('webpack-custom-var-library-name-plugin'),
     ROOT_PATH = PATH.resolve(__dirname, '..'),
     SOURCE_PATH = PATH.join(ROOT_PATH, 'src'),
@@ -24,25 +24,33 @@ module.exports = {
         //path: PATH.join(ROOT_PATH, 'dist'),
         path: PATH.join(ROOT_PATH, 'test', 'assets'),
         publicPath: '/assets/',
-        //library: LIB_NAME,
-        library: undefined,
+        library: LIB_NAME,
+        //library: undefined,
         libraryTarget: 'umd',
         umdNamedDefine: true
     },
     
     externals: {
         "libcore": {
-            root: "libcore"
+            root: "libcore",
+            commonjs: "libcore",
+            commonjs2: "libcore"
         },
         "libdom": {
-            root: "libdom"
+            root: "libdom",
+            commonjs: "libdom",
+            commonjs2: "libdom"
         }
     },
     
+    resolve: {
+        modules: ["node_modules"]
+    },
+    
     plugins: [
-        //new CustomVarLibraryNamePlugin({
-        //    name: VAR_NAME
-        //})
+        new CustomVarLibraryNamePlugin({
+            name: VAR_NAME
+        })
     ],
     
     module: {

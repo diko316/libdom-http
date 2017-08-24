@@ -1,12 +1,12 @@
 (function webpackUniversalModuleDefinition(root, factory) {
 	if(typeof exports === 'object' && typeof module === 'object')
-		module.exports = factory(require(undefined), require(undefined));
+		module.exports = factory(require("libcore"), require("libdom"));
 	else if(typeof define === 'function' && define.amd)
-		define([, ], factory);
-	else {
-		var a = typeof exports === 'object' ? factory(require(undefined), require(undefined)) : factory(root["libcore"], root["libdom"]);
-		for(var i in a) (typeof exports === 'object' ? exports : root)[i] = a[i];
-	}
+		define("libdom-http", [, ], factory);
+	else if(typeof exports === 'object')
+		exports["libdom-http"] = factory(require("libcore"), require("libdom"));
+	else
+		root["libdomHttp"] = factory(root["libdomHttp"]);
 })(this, function(__WEBPACK_EXTERNAL_MODULE_0__, __WEBPACK_EXTERNAL_MODULE_3__) {
 return /******/ (function(modules) { // webpackBootstrap
 /******/ 	// The module cache
@@ -2002,7 +2002,7 @@ function sniffDriver(config) {
     LIBCORE.run("libdom-http.driver.resolve", [config, driver]);
     driver = config.driver;
     
-    if (mgr.exists(driver)) {
+    if (LIBCORE.string(driver) && mgr.exists(driver)) {
         return driver;
     }
     
@@ -2419,7 +2419,7 @@ function createValue(operation, name, value, type, fieldType) {
     if ((isField || type === 'field-options')) {
         
         // use libcore to fill-in json
-        CORE.urlFill(items, name, value);
+        CORE.jsonFill(items, name, value);
         
     }
     else {
