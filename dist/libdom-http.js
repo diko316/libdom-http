@@ -191,6 +191,16 @@ function isField(field) {
     return false;
 }
 
+function onEachObjectValueProperty(value, name) {
+    /* jshint validthis: true */
+    var context = this;
+    
+    eachField(value,
+              name,
+              context[1],
+              context[0]);
+}
+
 function eachValues(values, callback, operation) {
     var typeObject = TYPE_OBJECT,
         typeArray = TYPE_ARRAY,
@@ -228,7 +238,10 @@ function eachValues(values, callback, operation) {
     
     if (isObjectValue || type === typeArray) {
         if (isObjectValue) {
-            libcore.each(values, callback, operation, true);
+            libcore.each(values,
+                         onEachObjectValueProperty,
+                         [operation, callback],
+                         true);
         }
         else {
             for (c = -1, l = values.length; l--;) {
@@ -1995,7 +2008,7 @@ function applyRequestConfig(config, requestObject) {
     
     // apply defaults
     item = config.form || config.data || config.params || config.body;
-    if (help.form(item)) {
+    if (isForm(item)) {
         applyRequestForm(item, requestObject);
     }
     else if (item !== null || item !== undef) {
@@ -2003,7 +2016,7 @@ function applyRequestConfig(config, requestObject) {
     }
     
     item = config.query || config.urlData || config.urlParams;
-    if (help.form(item) || (item !== null && item !== undef)) {
+    if (isForm(item) || (item !== null && item !== undef)) {
         requestObject.query = item;
     }
     
