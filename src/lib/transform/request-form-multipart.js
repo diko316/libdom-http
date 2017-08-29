@@ -1,7 +1,11 @@
 'use strict';
 
-var HELP = require("./helper.js"),
-    EOL = "\r\n",
+import {
+            each,
+            jsonify
+        } from "./helper.js";
+
+var EOL = "\r\n",
     BOUNDARY_LENGTH = 48;
 
 function createBoundary() {
@@ -33,7 +37,7 @@ function createValue(operation, name, value, type, fieldType) {
         value = isFinite(value) ? value.toString(10) : '';
     }
     else if (typeof value !== 'string') {
-        value = HELP.jsonify(value);
+        value = jsonify(value);
     }
     
     // encode
@@ -49,9 +53,10 @@ function createValue(operation, name, value, type, fieldType) {
 function convert(data) {
     var eol = EOL,
         boundary = createBoundary(),
-        body = HELP.each(data, createValue, {
-                returnValue: []
-            });
+        body = each(data,
+                    createValue, {
+                        returnValue: []
+                    });
     // start boundary
     if (!body.length) {
         body.splice(0, 0, boundary);
@@ -77,4 +82,4 @@ function convert(data) {
 }
 
 
-module.exports = convert;
+export default convert;

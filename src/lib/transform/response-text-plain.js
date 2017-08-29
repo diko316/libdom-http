@@ -1,19 +1,20 @@
 'use strict';
 
-var LIBCORE = require("libcore");
-
+import {
+            number,
+            string
+        } from "libcore";
 
 function convert(data) {
-    var CORE = LIBCORE;
     
-    if (CORE.number(data)) {
+    if (number(data)) {
         data = data.toString(10);
     }
     
     return ['Content-type: text/plain',
-            CORE.string(data) ?
+            string(data) ?
                 data : ''];
 }
 
 
-module.exports = convert;
+export default convert;

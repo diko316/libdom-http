@@ -1,10 +1,29 @@
 "use strict";
 
-var LIBCORE = require("libcore"),
-    LIBDOM = require("libdom"),
-    HELP = require("../transform/helper.js"),
-    BASE = require("./base.js"),
-    BASE_PROTOTYPE = BASE.prototype,
+import {
+            string,
+            array,
+            clear,
+            instantiate
+        } from "libcore";
+        
+import {
+            on,
+            un,
+            dispatch,
+            replace,
+            remove
+        } from "libdom";
+
+
+import {
+            jsonify,
+            each
+        } from "../transform/helper.js";
+
+import BASE from "./base.js";
+
+var BASE_PROTOTYPE = BASE.prototype,
     RESPONSE_TRIM = /(^<pre>|<\/pre>$)/ig,
     FILE_UPLOAD_GEN = 0;
 
@@ -41,7 +60,7 @@ function createForm(method, url, contentType, blankDocument) {
     
     iframe = div.firstChild.firstChild;
     
-    LIBDOM.on(iframe, 'load', frameFirstOnloadEvent);
+    on(iframe, 'load', frameFirstOnloadEvent);
     
     doc.body.appendChild(div);
     
@@ -50,17 +69,16 @@ function createForm(method, url, contentType, blankDocument) {
 }
 
 function frameFirstOnloadEvent(event) {
-    var DOM = LIBDOM,
-        target = event.target,
+    var target = event.target,
         form = target.parentNode;
         
-    DOM.un(target, 'load', frameFirstOnloadEvent);
+    un(target, 'load', frameFirstOnloadEvent);
     
     form.setAttribute('data-readystate', 'ready');
     
-    DOM.dispatch(form, 'libdom-http-ready', {});
+    dispatch(form, 'libdom-http-ready', {});
     
-    DOM = target = form = null;
+    target = form = null;
 }
 
 function getForm(id) {
@@ -68,8 +86,7 @@ function getForm(id) {
 }
 
 function createField(operation, name, value, type, fieldType) {
-    var CORE = LIBCORE,
-        impostors = operation.impostors,
+    var impostors = operation.impostors,
         fragment = operation.fragment,
         isField = type === "field",
         isFile = isField && fieldType === "file",
@@ -85,7 +102,7 @@ function createField(operation, name, value, type, fieldType) {
             input.disabled = true;
             input.readOnly = true;
             impostors[impostors.length] = [value, input];
-            LIBDOM.replace(value, input);
+            replace(value, input);
         }
         input = value;
         operation.files = true;
@@ -100,8 +117,8 @@ function createField(operation, name, value, type, fieldType) {
         if (value === 'number') {
             value = isFinite(value) ? value.toString(10) : '';
         }
-        else if (!CORE.string(value)) {
-            value = HELP.jsonify(value);
+        else if (!string(value)) {
+            value = jsonify(value);
         }
         
         input = fragment.ownerDocument.createElement('input');
@@ -144,7 +161,7 @@ function FormUpload() {
 }
 
 
-FormUpload.prototype = LIBCORE.instantiate(BASE, {
+FormUpload.prototype = instantiate(BASE, {
     constructor: FormUpload,
     
     blankDocument: 'about:blank',
@@ -167,12 +184,11 @@ FormUpload.prototype = LIBCORE.instantiate(BASE, {
     
     onFormReady: function () {
         var me = this,
-            DOM = LIBDOM,
             request = me.request,
             form = request.form;
 
         // unset event if it was set
-        DOM.un(form, 'libdom-http-ready', me.onFormReady);
+        un(form, 'libdom-http-ready', me.onFormReady);
         
         form.enctype = form.encoding = request.contentType;
         
@@ -189,7 +205,7 @@ FormUpload.prototype = LIBCORE.instantiate(BASE, {
             form = request && request.form;
         
         if (form) {
-            LIBDOM.on(request.iframe, 'load', me.onRespond);
+            on(request.iframe, 'load', me.onRespond);
             form.submit();
             
         }
@@ -207,7 +223,7 @@ FormUpload.prototype = LIBCORE.instantiate(BASE, {
             success = false,
             docBody = '';
         
-        LIBDOM.un(iframe, 'load', me.onRespond);
+        un(iframe, 'load', me.onRespond);
         
         try {
             docBody = iframe.contentWindow.document.body.innerHTML;
@@ -229,7 +245,6 @@ FormUpload.prototype = LIBCORE.instantiate(BASE, {
     
     onSetup: function (request) {
         var me = this,
-            CORE = LIBCORE,
             impostors = [],
             id = createForm(request.method,
                             request.getUrl(),
@@ -246,7 +261,7 @@ FormUpload.prototype = LIBCORE.instantiate(BASE, {
             currentResponseType = request.responseType;
             
         // recreate request
-        HELP.each(request.data, createField, operation);
+        each(request.data, createField, operation);
         
         // add fields
         form.appendChild(operation.fragment);
@@ -256,12 +271,12 @@ FormUpload.prototype = LIBCORE.instantiate(BASE, {
         request.fileUpload = operation.files;
         
         // use application.json as default response type
-        if (!CORE.string(currentResponseType)) {
+        if (!string(currentResponseType)) {
             request.responseType = me.defaultType;
         }
         
         // cleanup operation
-        CORE.clear(operation);
+        clear(operation);
         
         request.transportPromise = me.createTransportPromise(request);
         
@@ -285,7 +300,7 @@ FormUpload.prototype = LIBCORE.instantiate(BASE, {
             this.onFormReady();
         }
         else {
-            LIBDOM.on(form, 'libdom-http-ready', this.onFormReady);
+            on(form, 'libdom-http-ready', this.onFormReady);
         }
         
     },
@@ -295,7 +310,7 @@ FormUpload.prototype = LIBCORE.instantiate(BASE, {
             response = me.response,
             responseBody = request.formResponse;
         
-        if (LIBCORE.string(responseBody)) {
+        if (string(responseBody)) {
             response.body = responseBody;
         }
     },
@@ -305,12 +320,12 @@ FormUpload.prototype = LIBCORE.instantiate(BASE, {
             form = request.form;
         
         // return impostors
-        if (LIBCORE.array(impostors)) {
+        if (array(impostors)) {
             revertImpostors(impostors);
         }
         
         if (form) {
-            LIBDOM.remove(form.parentNode || form);
+            remove(form.parentNode || form);
         }
         
         request.transportPromise = 
@@ -322,4 +337,4 @@ FormUpload.prototype = LIBCORE.instantiate(BASE, {
     
 });
 
-module.exports = FormUpload;
+export default FormUpload;

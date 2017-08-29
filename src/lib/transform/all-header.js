@@ -1,9 +1,10 @@
 'use strict';
 
-var HEADER = require("../header.js");
+import { parse } from "../header.js";
 
 function convert(data) {
-    return [null, HEADER.parse(data)];
+    return [null, parse(data)];
 }
 
-module.exports = convert;
+export default convert;
+

@@ -1,6 +1,10 @@
 'use strict';
 
-var LIBCORE = require("libcore");
+import {
+            method as isFunction
+        } from "libcore";
+        
+
 
 function bind(instance, method) {
     function bound() {
@@ -76,7 +80,7 @@ Driver.prototype = {
         // it's a promise! :-)
         transportPromise = request.transportPromise;
         if (transportPromise &&
-            LIBCORE.method(transportPromise.then)) {
+            isFunction(transportPromise.then)) {
             
             request.begin();
             
@@ -155,4 +159,4 @@ Driver.prototype = {
     }
 };
 
-module.exports = Driver;
+export default Driver;

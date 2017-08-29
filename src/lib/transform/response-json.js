@@ -1,7 +1,8 @@
 'use strict';
 
-var LIBCORE = require("libcore"),
-    json = global.JSON;
+import { string } from "libcore";
+
+var json = global.JSON;
 
 if (!json) {
     json = false;
@@ -13,7 +14,7 @@ function convert(data) {
     if (!json) {
         throw new Error("JSON is not supported in this platform");
     }
-    else if (!LIBCORE.string(data)) {
+    else if (!string(data)) {
         return null;
     }
     
@@ -27,5 +28,4 @@ function convert(data) {
     return [null, data];
 }
 
-
-module.exports = convert;
+export default convert;

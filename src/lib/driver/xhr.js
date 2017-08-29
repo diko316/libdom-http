@@ -1,8 +1,16 @@
 'use strict';
 
-var LIBCORE = require("libcore"),
-    BASE = require("./base.js"),
-    MIDDLEWARE = LIBCORE.middleware("libdom-http.driver.xhr"),
+import {
+            object,
+            array,
+            each,
+            instantiate,
+            middleware
+        } from "libcore";
+
+import BASE from "./base.js";
+
+var MIDDLEWARE = middleware("libdom-http.driver.xhr"),
     STATE_UNSENT = 0,
     STATE_OPENED = 1,
     STATE_HEADERS_RECEIVED = 2,
@@ -15,7 +23,7 @@ function applyHeader(value, name) {
     /* jshint validthis:true */
     var me = this;
     var c, l;
-    if (!LIBCORE.array(value)) {
+    if (!array(value)) {
         value = [value];
     }
     for (c = -1, l = value.length; l--;) {
@@ -35,7 +43,7 @@ function Xhr() {
 }
 
 
-Xhr.prototype = LIBCORE.instantiate(BASE, {
+Xhr.prototype = instantiate(BASE, {
     level: 1,
     bindMethods: BASE_PROTOTYPE.bindMethods.concat([
                     'onReadyStateChange'
@@ -109,7 +117,6 @@ Xhr.prototype = LIBCORE.instantiate(BASE, {
     
     onTransport: function (request) {
         var me = this,
-            CORE = LIBCORE,
             xhr = request.xhrTransport,
             headers = request.headers,
             args = [me, request];
@@ -122,8 +129,8 @@ Xhr.prototype = LIBCORE.instantiate(BASE, {
         
         // apply headers
         headers = request.headers;
-        if (CORE.object(headers)) {
-            CORE.each(headers, applyHeader, xhr);
+        if (object(headers)) {
+            each(headers, applyHeader, xhr);
         }
         
         xhr.send(request.body);
@@ -177,4 +184,4 @@ Xhr.prototype = LIBCORE.instantiate(BASE, {
 
 
 
-module.exports = Xhr;
+export default Xhr;

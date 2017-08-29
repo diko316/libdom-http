@@ -1,12 +1,22 @@
 'use strict';
 
-var LIBCORE = require("libcore"),
-    LIBDOM = require("libdom"),
-    DETECT = require("../detect.js"),
-    MIDDLEWARE = LIBCORE.middleware("libdom-http.driver.xhr"),
+import {
+            number,
+            middleware
+        } from "libcore";
+        
+import {
+            on,
+            un
+        } from "libdom";
+
+import DETECT from "../detect.js";
+
+import XHR from "./xhr.js";
+
+var MIDDLEWARE = middleware("libdom-http.driver.xhr"),
     register = MIDDLEWARE.register,
     BEFORE_REQUEST = "before:request",
-    XHR = require("./xhr.js"),
     PROTOTYPE = XHR.prototype,
     BINDS = PROTOTYPE.bindMethods,
     BIND_LENGTH = BINDS.length,
@@ -17,7 +27,7 @@ var LIBCORE = require("libcore"),
 function addTimeout(instance, request) {
     var timeout = request.settings('timeout');
     
-    if (LIBCORE.number(timeout) && timeout > 10) {
+    if (number(timeout) && timeout > 10) {
         request.xhrTransport.timeout = timeout;
     }
 }
@@ -58,13 +68,13 @@ function addProgressEvent(instance, request) {
         request.percentLoaded = 0;
     }
     
-    LIBDOM.on(request.xhrTransport, 'progress', instance.onProgress);
+    on(request.xhrTransport, 'progress', instance.onProgress);
 }
 
 // cleanup
 function cleanup(instance, request) {
     if (PROGRESS) {
-        LIBDOM.un(request.xhrTransport, 'progress', instance.onProgress);
+        un(request.xhrTransport, 'progress', instance.onProgress);
     }
 }
 
@@ -116,4 +126,4 @@ if (features) {
 }
 
 
-module.exports = XHR;
+export default XHR;

@@ -1,10 +1,5 @@
-(function (global, factory) {
-	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('libcore'), require('libdom')) :
-	typeof define === 'function' && define.amd ? define(['exports', 'libcore', 'libdom'], factory) :
-	(factory((global['libdom-http'] = {}),global.libcore,global.libdom));
-}(this, (function (exports,libcore,DOM) { 'use strict';
-
-var DOM__default = 'default' in DOM ? DOM['default'] : DOM;
+import { array, assign, clear, contains, createRegistry, date, each, env, instantiate, jsonFill, method, middleware, number, object, run, string } from 'libcore';
+import DOM, { destructor, dispatch, is, on, remove, replace, un } from 'libdom';
 
 var MAIN_MODULE;
 
@@ -20,7 +15,7 @@ var global$1 = typeof global !== "undefined" ? global :
             typeof self !== "undefined" ? self :
             typeof window !== "undefined" ? window : {};
 
-var ENV = DOM__default.env;
+var ENV = DOM.env;
 var G = global$1;
 var XHR = G.XMLHttpRequest;
 var support_xhr = !!XHR;
@@ -63,7 +58,7 @@ var DETECT = {
 
 G = XHR = null;
 
-var DRIVERS = libcore.createRegistry();
+var DRIVERS = createRegistry();
 var DEFAULT = null;
 var exported = {
         register: register,
@@ -77,7 +72,7 @@ var exported = {
  */
 function register(name, Class) {
             
-        if (libcore.string(name) && libcore.method(Class)) {
+        if (string(name) && method(Class)) {
             DRIVERS.set(name, Class);
             Class.prototype.type = name;
             
@@ -122,7 +117,7 @@ var QUOTED_RE = /^\"[^\"]+\"/;
             
         var match, subtype, parameters, name, value, l, defaultType;
         
-        if (libcore.string(type) && mtypeRe.test(type)) {
+        if (string(type) && mtypeRe.test(type)) {
             match = type.match(mtypeRe);
             type = match[1].toLowerCase();
             subtype = match[2].toLowerCase();
@@ -175,11 +170,11 @@ var TYPE_ARRAY = 2;
 
 
 function isForm(form) {
-    return DOM.is(form, 1) && form.tagName.toUpperCase() === 'FORM';
+    return is(form, 1) && form.tagName.toUpperCase() === 'FORM';
 }
 
 function isField(field) {
-    if (DOM.is(field, 1)) {
+    if (is(field, 1)) {
         switch (field.tagName.toUpperCase()) {
         case 'INPUT':
         case 'TEXTAREA':
@@ -196,7 +191,7 @@ function eachValues(values, callback, operation) {
         typeArray = TYPE_ARRAY,
         type = null,
         each$$1 = eachField,
-        isObject = libcore.object,
+        isObject = object,
         isObjectValue = isObject(values);
         
     var c, l;
@@ -213,7 +208,7 @@ function eachValues(values, callback, operation) {
     else if (isObjectValue) {
         type = typeObject;
     }
-    else if (libcore.array(values)) {
+    else if (array(values)) {
         type = typeArray;
         isObjectValue = false;
     }
@@ -222,13 +217,13 @@ function eachValues(values, callback, operation) {
         operation = {};
     }
     
-    if (!libcore.contains(operation, 'returnValue')) {
+    if (!contains(operation, 'returnValue')) {
         operation.returnValue = null;
     }
     
     if (isObjectValue || type === typeArray) {
         if (isObjectValue) {
-            libcore.each(values, callback, operation, true);
+            each(values, callback, operation, true);
         }
         else {
             for (c = -1, l = values.length; l--;) {
@@ -241,7 +236,7 @@ function eachValues(values, callback, operation) {
 }
 
 function eachField(field, name, callback, operation) {
-    var isString = libcore.string,
+    var isString = string,
         hasName = isString(name),
         fieldType = 'variant';
     var type, c, l, list, option;
@@ -297,10 +292,10 @@ function eachField(field, name, callback, operation) {
     }
     else {
         switch (true) {
-        case libcore.array(field):
+        case array(field):
             type = 'array';
             break;
-        case libcore.date(field):
+        case date(field):
             type = 'date';
             break;
         default:
@@ -342,7 +337,7 @@ function createValue(operation, name, value, type, fieldType) {
     if (value === 'number') {
         value = isFinite(value) ? value.toString(10) : '';
     }
-    else if (!libcore.string(value)) {
+    else if (!string(value)) {
         value = jsonify(value);
     }
     
@@ -350,7 +345,7 @@ function createValue(operation, name, value, type, fieldType) {
     if ((isField$$1 || type === 'field-options')) {
         
         // use libcore to fill-in json
-        libcore.jsonFill(items, name, value);
+        jsonFill(items, name, value);
         
     }
     else {
@@ -384,7 +379,7 @@ function convert$1(data) {
     if (!json) {
         throw new Error("JSON is not supported in this platform");
     }
-    else if (!libcore.string(data)) {
+    else if (!string(data)) {
         return null;
     }
     
@@ -505,7 +500,7 @@ function convert$3(data) {
     
 }
 
-var TRANSFORMERS = libcore.createRegistry();
+var TRANSFORMERS = createRegistry();
 var REQUEST_PREFIX = 'request-';
 var RESPONSE_PREFIX = 'response-';
 var exported$2 = {
@@ -518,7 +513,7 @@ function register$1(type, response, handler) {
             responsePrefix = RESPONSE_PREFIX;
         var finalType, current, all;
         
-        if (libcore.method(handler)) {
+        if (method(handler)) {
             type = parseType(type);
             if (type) {
                 all = response === 'all';
@@ -563,7 +558,7 @@ function transform(type, response, data) {
             finalType = response + type.root;
             if (transformers.exists(finalType)) {
                 data = transformers.get(finalType)(data);
-                return libcore.array(data) ? data : [null, null];
+                return array(data) ? data : [null, null];
             }
             
         }
@@ -666,7 +661,7 @@ Driver.prototype = {
         // it's a promise! :-)
         transportPromise = request.transportPromise;
         if (transportPromise &&
-            libcore.method(transportPromise.then)) {
+            method(transportPromise.then)) {
             
             request.begin();
             
@@ -745,7 +740,7 @@ Driver.prototype = {
     }
 };
 
-var MIDDLEWARE = libcore.middleware("libdom-http.driver.xhr");
+var MIDDLEWARE = middleware("libdom-http.driver.xhr");
 var STATE_UNSENT = 0;
 var STATE_OPENED = 1;
 var STATE_HEADERS_RECEIVED = 2;
@@ -758,7 +753,7 @@ function applyHeader(value, name) {
     /* jshint validthis:true */
     var me = this;
     var c, l;
-    if (!libcore.array(value)) {
+    if (!array(value)) {
         value = [value];
     }
     for (c = -1, l = value.length; l--;) {
@@ -778,7 +773,7 @@ function Xhr() {
 }
 
 
-Xhr.prototype = libcore.instantiate(Driver, {
+Xhr.prototype = instantiate(Driver, {
     level: 1,
     bindMethods: BASE_PROTOTYPE.bindMethods.concat([
                     'onReadyStateChange'
@@ -864,8 +859,8 @@ Xhr.prototype = libcore.instantiate(Driver, {
         
         // apply headers
         headers = request.headers;
-        if (libcore.object(headers)) {
-            libcore.each(headers, applyHeader, xhr);
+        if (object(headers)) {
+            each(headers, applyHeader, xhr);
         }
         
         xhr.send(request.body);
@@ -917,7 +912,7 @@ Xhr.prototype = libcore.instantiate(Driver, {
 
 });
 
-var MIDDLEWARE$1 = libcore.middleware("libdom-http.driver.xhr");
+var MIDDLEWARE$1 = middleware("libdom-http.driver.xhr");
 var register$2 = MIDDLEWARE$1.register;
 var BEFORE_REQUEST = "before:request";
 var PROTOTYPE = Xhr.prototype;
@@ -930,7 +925,7 @@ var features = 0;
 function addTimeout(instance, request) {
     var timeout = request.settings('timeout');
     
-    if (libcore.number(timeout) && timeout > 10) {
+    if (number(timeout) && timeout > 10) {
         request.xhrTransport.timeout = timeout;
     }
 }
@@ -971,13 +966,13 @@ function addProgressEvent(instance, request) {
         request.percentLoaded = 0;
     }
     
-    DOM.on(request.xhrTransport, 'progress', instance.onProgress);
+    on(request.xhrTransport, 'progress', instance.onProgress);
 }
 
 // cleanup
 function cleanup(instance, request) {
     if (PROGRESS) {
-        DOM.un(request.xhrTransport, 'progress', instance.onProgress);
+        un(request.xhrTransport, 'progress', instance.onProgress);
     }
 }
 
@@ -1065,7 +1060,7 @@ function createForm(method$$1, url, contentType, blankDocument) {
     
     iframe = div.firstChild.firstChild;
     
-    DOM.on(iframe, 'load', frameFirstOnloadEvent);
+    on(iframe, 'load', frameFirstOnloadEvent);
     
     doc.body.appendChild(div);
     
@@ -1077,11 +1072,11 @@ function frameFirstOnloadEvent(event) {
     var target = event.target,
         form = target.parentNode;
         
-    DOM.un(target, 'load', frameFirstOnloadEvent);
+    un(target, 'load', frameFirstOnloadEvent);
     
     form.setAttribute('data-readystate', 'ready');
     
-    DOM.dispatch(form, 'libdom-http-ready', {});
+    dispatch(form, 'libdom-http-ready', {});
     
     target = form = null;
 }
@@ -1107,7 +1102,7 @@ function createField(operation, name, value, type, fieldType) {
             input.disabled = true;
             input.readOnly = true;
             impostors[impostors.length] = [value, input];
-            DOM.replace(value, input);
+            replace(value, input);
         }
         input = value;
         operation.files = true;
@@ -1122,7 +1117,7 @@ function createField(operation, name, value, type, fieldType) {
         if (value === 'number') {
             value = isFinite(value) ? value.toString(10) : '';
         }
-        else if (!libcore.string(value)) {
+        else if (!string(value)) {
             value = jsonify(value);
         }
         
@@ -1166,7 +1161,7 @@ function FormUpload() {
 }
 
 
-FormUpload.prototype = libcore.instantiate(Driver, {
+FormUpload.prototype = instantiate(Driver, {
     constructor: FormUpload,
     
     blankDocument: 'about:blank',
@@ -1193,7 +1188,7 @@ FormUpload.prototype = libcore.instantiate(Driver, {
             form = request.form;
 
         // unset event if it was set
-        DOM.un(form, 'libdom-http-ready', me.onFormReady);
+        un(form, 'libdom-http-ready', me.onFormReady);
         
         form.enctype = form.encoding = request.contentType;
         
@@ -1210,7 +1205,7 @@ FormUpload.prototype = libcore.instantiate(Driver, {
             form = request && request.form;
         
         if (form) {
-            DOM.on(request.iframe, 'load', me.onRespond);
+            on(request.iframe, 'load', me.onRespond);
             form.submit();
             
         }
@@ -1228,7 +1223,7 @@ FormUpload.prototype = libcore.instantiate(Driver, {
             success = false,
             docBody = '';
         
-        DOM.un(iframe, 'load', me.onRespond);
+        un(iframe, 'load', me.onRespond);
         
         try {
             docBody = iframe.contentWindow.document.body.innerHTML;
@@ -1276,12 +1271,12 @@ FormUpload.prototype = libcore.instantiate(Driver, {
         request.fileUpload = operation.files;
         
         // use application.json as default response type
-        if (!libcore.string(currentResponseType)) {
+        if (!string(currentResponseType)) {
             request.responseType = me.defaultType;
         }
         
         // cleanup operation
-        libcore.clear(operation);
+        clear(operation);
         
         request.transportPromise = me.createTransportPromise(request);
         
@@ -1305,7 +1300,7 @@ FormUpload.prototype = libcore.instantiate(Driver, {
             this.onFormReady();
         }
         else {
-            DOM.on(form, 'libdom-http-ready', this.onFormReady);
+            on(form, 'libdom-http-ready', this.onFormReady);
         }
         
     },
@@ -1315,7 +1310,7 @@ FormUpload.prototype = libcore.instantiate(Driver, {
             response = me.response,
             responseBody = request.formResponse;
         
-        if (libcore.string(responseBody)) {
+        if (string(responseBody)) {
             response.body = responseBody;
         }
     },
@@ -1325,12 +1320,12 @@ FormUpload.prototype = libcore.instantiate(Driver, {
             form = request.form;
         
         // return impostors
-        if (libcore.array(impostors)) {
+        if (array(impostors)) {
             revertImpostors(impostors);
         }
         
         if (form) {
-            DOM.remove(form.parentNode || form);
+            remove(form.parentNode || form);
         }
         
         request.transportPromise = 
@@ -1344,18 +1339,18 @@ FormUpload.prototype = libcore.instantiate(Driver, {
 
 function convert$4(data) {
     
-    if (libcore.number(data)) {
+    if (number(data)) {
         data = data.toString(10);
     }
     
     return ['Content-type: text/plain',
-            libcore.string(data) ?
+            string(data) ?
                 data : ''];
 }
 
 function appendFormData(operation, name, value, type, fieldType) {
     var formData = operation.returnValue,
-        isString = libcore.string;
+        isString = string;
     var list, c, l, filename;
     
     // don't use parsed name for formData
@@ -1468,7 +1463,7 @@ function parseHeaderString(str, callback, scope) {
             name = normalize(name);
             
             
-            exist = libcore.contains(headers, name);
+            exist = contains(headers, name);
             if (!exist) {
                 names[nl++] = name;
             }
@@ -1516,8 +1511,8 @@ function parseCallback(name, values) {
 }
 
 function cleanArrayValues(array$$1) {
-    var isString = libcore.string,
-        isNumber = libcore.number,
+    var isString = string,
+        isNumber = number,
         l = array$$1.length;
     var value;
     
@@ -1543,12 +1538,12 @@ function onEachInput(value, name) {
     
     name = headerName(name);
     
-    if (libcore.string(value) || libcore.number(value)) {
+    if (string(value) || number(value)) {
         callback.call(scope, name,
                                 multivalueRe.test(name) ?
                                     [value] : value);
     }
-    else if (libcore.array(value)) {
+    else if (array(value)) {
         
         value = cleanArrayValues(value.slice(0));
         
@@ -1578,21 +1573,21 @@ function headerName(name) {
 function each$1(input, callback, scope, current) {
         
         // join as string
-        if (libcore.array(input)) {
+        if (array(input)) {
             input = cleanArrayValues(input.slice(0)).join("\r\n");
         }
         
-        if (libcore.string(input)) {
+        if (string(input)) {
             parseHeaderString(input, callback, scope, current);
             
         }
-        else if (libcore.object(input)) {
+        else if (object(input)) {
             
             if (typeof scope === 'undefined') {
                 scope = null;
             }
             
-            libcore.each(input,
+            each(input,
                          onEachInput,
                          [callback,
                           scope
@@ -1626,7 +1621,7 @@ function applyQueryString(url, queryString) {
     var match = url.match(URL_QUERY_STRING_RE);
     var query;
     
-    if (match && libcore.string(queryString)) {
+    if (match && string(queryString)) {
         query = match[2];
         match[2] = (query ? query + '&' : '?') + queryString;
         match[3] = match[3] || '';
@@ -1756,8 +1751,8 @@ Operation.prototype = {
         
         if (headers) {
             current = me.headers;
-            if (libcore.object(current)) {
-                libcore.assign(current, headers);
+            if (object(current)) {
+                assign(current, headers);
             }
             else {
                 me.headers = headers;
@@ -1781,10 +1776,10 @@ Operation.prototype = {
         var me = this,
             current = me.headers;
         
-        if (libcore.string(name) && libcore.object(current)) {
+        if (string(name) && object(current)) {
             name = headerName(name);
             
-            if (libcore.contains(current, name)) {
+            if (contains(current, name)) {
                 return current[name];
             }
             
@@ -1797,14 +1792,14 @@ Operation.prototype = {
         var me = this;
         if (!me.destroyed) {
             me.destroyed = true;
-            libcore.clear(me);
+            clear(me);
         }
         return me;
     }
 };
 
 
-Request.prototype = libcore.instantiate(Operation, {
+Request.prototype = instantiate(Operation, {
     url: null,
     method: 'get',
     constructor: Request,
@@ -1818,7 +1813,7 @@ Request.prototype = libcore.instantiate(Operation, {
     
     getUrl: function () {
         var me = this,
-            isString = libcore.string,
+            isString = string,
             url = me.url,
             query = me.query,
             data = me.data,
@@ -1848,7 +1843,7 @@ Request.prototype = libcore.instantiate(Operation, {
     settings: function (name) {
         var config = this.config;
             
-        if (libcore.object(config) && libcore.contains(config, name)) {
+        if (object(config) && contains(config, name)) {
             return config[name];
         }
         return void(0);
@@ -1883,7 +1878,7 @@ Request.prototype = libcore.instantiate(Operation, {
         me.response = response = new Response();
         
         // use response type as resonse contentType
-        if (libcore.string(responseType)) {
+        if (string(responseType)) {
             response.addHeaders('Content-type: ' + responseType);
         }
         response.request = me;
@@ -1893,7 +1888,7 @@ Request.prototype = libcore.instantiate(Operation, {
     }
 });
 
-Response.prototype = libcore.instantiate(Operation, {
+Response.prototype = instantiate(Operation, {
     constructor: Response,
     status: 0,
     statusText: 'Uninitialized',
@@ -1915,9 +1910,9 @@ Response.prototype = libcore.instantiate(Operation, {
 });
 
 
-DOM.destructor(destructor$1);
+destructor(destructor$1);
 
-var DEFAULTS = libcore.createRegistry();
+var DEFAULTS = createRegistry();
 var METHODS = ['get','post','put','patch','delete','options'];
 var ALLOWED_PAYLOAD = ['post', 'put', 'patch'];
 var exported$6 = {
@@ -1928,7 +1923,7 @@ var exported$6 = {
 
 
 function normalizeMethod(method$$1) {
-    if (libcore.string(method$$1)) {
+    if (string(method$$1)) {
         method$$1 = method$$1.toLowerCase();
         if (METHODS.indexOf(method$$1) !== -1) {
             return method$$1;
@@ -1942,10 +1937,10 @@ function sniffDriver(config) {
     var driver = config.driver;
     
     // call middleware
-    libcore.run("libdom-http.driver.resolve", [config, driver]);
+    run("libdom-http.driver.resolve", [config, driver]);
     driver = config.driver;
     
-    if (libcore.string(driver) && exists(driver)) {
+    if (string(driver) && exists(driver)) {
         return driver;
     }
     
@@ -1955,7 +1950,7 @@ function sniffDriver(config) {
 }
 
 function applyRequestForm(form, requestObject) {
-    var isString = libcore.string;
+    var isString = string;
     var item;
     
     // use this as request header only if not default
@@ -1989,7 +1984,7 @@ function applyRequestForm(form, requestObject) {
 }
 
 function applyRequestConfig(config, requestObject) {
-    var isString = libcore.string,
+    var isString = string,
         undef = void(0);
     var item;
     
@@ -2036,8 +2031,8 @@ function applyRequestConfig(config, requestObject) {
 }
 
 function request(url, config) {
-        var isString = libcore.string,
-            isObject = libcore.object,
+        var isString = string,
+            isObject = object,
             isForm$$1 = isForm,
             applyConfig = applyRequestConfig,
             requestObject = new Request(),
@@ -2134,7 +2129,7 @@ if (DETECT.xhr) {
 }
 
 // file upload drivers
-if (libcore.env && libcore.env.browser) {
+if (env && env.browser) {
     register('form-upload',
         DETECT.xhr && DETECT.file && DETECT.blob ?
             // form data
@@ -2178,17 +2173,6 @@ var moduleApi$1 = Object.freeze({
 
 use(moduleApi$1);
 
-exports['default'] = moduleApi$1;
-exports.use = use$1;
-exports.driver = register;
-exports.transform = transform;
-exports.transformer = register$1;
-exports.request = request;
-exports.defaults = defaults;
-exports.parseHeader = parse;
-exports.eachHeader = each$1;
-
-Object.defineProperty(exports, '__esModule', { value: true });
-
-})));
-//# sourceMappingURL=libdom-http.js.map
+export { use$1 as use, register as driver, transform, register$1 as transformer, request, defaults, parse as parseHeader, each$1 as eachHeader };
+export default moduleApi$1;
+//# sourceMappingURL=libdom-http.es.js.map

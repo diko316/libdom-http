@@ -1,6 +1,9 @@
 'use strict';
 
-var http = global.main;
+
+
+var http = global.main,
+    dom = global.libdom;
 var request = {
         method: 'post',
         params: {
@@ -10,7 +13,7 @@ var request = {
 console.log("------------------ xhr");
 
 
-http.request("data.json", request).
+http.request("test/data.json", request).
     then(function (data) {
         console.log("success! ", data);
     }, function (error) {
@@ -19,11 +22,10 @@ http.request("data.json", request).
 
 
 
-var dom = require("libdom");
 
 dom.add(global.document.body, {
     tag: 'form',
-    action: 'data.json',
+    action: 'test/data.json',
     method: 'post',
     enctype: 'multipart/form-data',
     onsubmit: function (event) {
@@ -92,7 +94,7 @@ dom.add(global.document.body, {
 // test application/x-www-form-urlencoded
 dom.add(global.document.body, {
     tag: 'form',
-    action: 'data.json',
+    action: 'test/data.json',
     method: 'get',
     onsubmit: function (event) {
         event.preventDefault();
@@ -151,7 +153,7 @@ console.log('URL: ', global.URL);
 dom.add(global.document.body, {
     tag: 'form',
     enctype: 'multipart/form-data',
-    action: 'data.json',
+    action: 'test/data.json',
     method: 'post',
     onsubmit: function (event) {
         event.preventDefault();

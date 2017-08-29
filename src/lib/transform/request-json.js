@@ -1,12 +1,18 @@
 'use strict';
 
-var LIBCORE = require("libcore"),
-    HELP = require("./helper.js");
+import {
+            string,
+            jsonFill
+        } from "libcore";
+        
+import {
+            jsonify,
+            each
+        } from "./helper.js";
 
 
 function createValue(operation, name, value, type, fieldType) {
-    var CORE = LIBCORE,
-        items = operation.returnValue,
+    var items = operation.returnValue,
         isField = type === "field";
     
     if (isField) {
@@ -20,15 +26,15 @@ function createValue(operation, name, value, type, fieldType) {
     if (value === 'number') {
         value = isFinite(value) ? value.toString(10) : '';
     }
-    else if (!CORE.string(value)) {
-        value = HELP.jsonify(value);
+    else if (!string(value)) {
+        value = jsonify(value);
     }
     
     // this type of encoding is only available in form fields
     if ((isField || type === 'field-options')) {
         
         // use libcore to fill-in json
-        CORE.jsonFill(items, name, value);
+        jsonFill(items, name, value);
         
     }
     else {
@@ -41,15 +47,13 @@ function createValue(operation, name, value, type, fieldType) {
 }
 
 function convert(data) {
-    var H = HELP,
-        operation = {
+    var operation = {
             index: {},
             returnValue: {}
         },
-        body = H.each(data, createValue, operation);
+        body = each(data, createValue, operation);
     
-    return [null, H.jsonify(body)];
+    return [null, jsonify(body)];
 }
 
-
-module.exports = convert;
+export default convert;

@@ -1,9 +1,17 @@
 'use strict';
 
-var LIBCORE = require("libcore"),
-    DRIVERS = LIBCORE.createRegistry(),
+import {
+            string,
+            method,
+            createRegistry
+        } from "libcore";
+        
+import { get as getModule } from "./chain.js";
+
+
+var DRIVERS = createRegistry(),
     DEFAULT = null,
-    EXPORTS = {
+    exported = {
         register: register,
         exists: exists,
         use: use,
@@ -13,38 +21,39 @@ var LIBCORE = require("libcore"),
 /**
  * driver management
  */
-function register(name, Class) {
-    var CORE = LIBCORE;
+export
+    function register(name, Class) {
+            
+        if (string(name) && method(Class)) {
+            DRIVERS.set(name, Class);
+            Class.prototype.type = name;
+            
+            if (!DEFAULT) {
+                DEFAULT = name;
+            }
+        }
         
-    if (CORE.string(name) && CORE.method(Class)) {
-        DRIVERS.set(name, Class);
-        Class.prototype.type = name;
-        
-        if (!DEFAULT) {
+        return getModule();
+    }
+export
+    function exists(name) {
+        return DRIVERS.exists(name);
+    }
+
+export
+    function use(name) {
+        if (arguments.length > 0 && exists(name)) {
             DEFAULT = name;
         }
+        return DEFAULT;
     }
-    return EXPORTS.chain;
-}
-
-function exists(name) {
-    return DRIVERS.exists(name);
-}
-
-function use(name) {
-    if (arguments.length > 0 && exists(name)) {
-        DEFAULT = name;
-    }
-    return DEFAULT;
-}
 
 /**
  * driver process
  */
-function get(type) {
-    return DRIVERS.get(type);
-}
+export
+    function get(type) {
+        return DRIVERS.get(type);
+    }
 
-
-
-module.exports = EXPORTS.chain = EXPORTS;
+export default exported;

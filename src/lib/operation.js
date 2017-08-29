@@ -1,10 +1,26 @@
 'use strict';
 
-var LIBCORE = require("libcore"),
-    LIBDOM = require("libdom"),
-    HEADER = require("./header.js"),
-    TRANSFORMER = require("./transform.js"),
-    CLEANING = false,
+import {
+            string,
+            object,
+            assign,
+            contains,
+            clear,
+            instantiate
+        } from "libcore";
+        
+import { destructor as domDestructor } from "libdom";
+        
+import {
+            parse,
+            headerName
+        } from "./header.js";
+
+import {
+            transform
+        } from "./transform.js";
+
+var CLEANING = false,
     CLEAN_INTERVAL = 1000,
     TTL = 10000,
     RUNNING = false,
@@ -15,7 +31,7 @@ function applyQueryString(url, queryString) {
     var match = url.match(URL_QUERY_STRING_RE);
     var query;
     
-    if (match && LIBCORE.string(queryString)) {
+    if (match && string(queryString)) {
         query = match[2];
         match[2] = (query ? query + '&' : '?') + queryString;
         match[3] = match[3] || '';
@@ -138,16 +154,15 @@ Operation.prototype = {
     },
     
     addHeaders: function (headers) {
-        var me = this,
-            CORE = LIBCORE;
+        var me = this;
         var current, contentType;
             
-        headers = HEADER.parse(headers);
+        headers = parse(headers);
         
         if (headers) {
             current = me.headers;
-            if (CORE.object(current)) {
-                CORE.assign(current, headers);
+            if (object(current)) {
+                assign(current, headers);
             }
             else {
                 me.headers = headers;
@@ -169,13 +184,12 @@ Operation.prototype = {
     
     header: function (name) {
         var me = this,
-            current = me.headers,
-            CORE = LIBCORE;
+            current = me.headers;
         
-        if (CORE.string(name) && CORE.object(current)) {
-            name = HEADER.headerName(name);
+        if (string(name) && object(current)) {
+            name = headerName(name);
             
-            if (CORE.contains(current, name)) {
+            if (contains(current, name)) {
                 return current[name];
             }
             
@@ -188,14 +202,14 @@ Operation.prototype = {
         var me = this;
         if (!me.destroyed) {
             me.destroyed = true;
-            LIBCORE.clear(me);
+            clear(me);
         }
         return me;
     }
 };
 
 
-Request.prototype = LIBCORE.instantiate(Operation, {
+Request.prototype = instantiate(Operation, {
     url: null,
     method: 'get',
     constructor: Request,
@@ -209,8 +223,7 @@ Request.prototype = LIBCORE.instantiate(Operation, {
     
     getUrl: function () {
         var me = this,
-            isString = LIBCORE.string,
-            transform = TRANSFORMER.transform,
+            isString = string,
             url = me.url,
             query = me.query,
             data = me.data,
@@ -238,10 +251,9 @@ Request.prototype = LIBCORE.instantiate(Operation, {
     },
     
     settings: function (name) {
-        var config = this.config,
-            CORE = LIBCORE;
+        var config = this.config;
             
-        if (CORE.object(config) && CORE.contains(config, name)) {
+        if (object(config) && contains(config, name)) {
             return config[name];
         }
         return void(0);
@@ -249,9 +261,9 @@ Request.prototype = LIBCORE.instantiate(Operation, {
     
     process: function () {
         var me = this,
-            result = TRANSFORMER.transform(me.header('content-type'),
-                                        false,
-                                        me.data),
+            result = transform(me.header('content-type'),
+                               false,
+                               me.data),
             headers = result[0],
             responseType = me.responseType,
             response = me.response;
@@ -276,7 +288,7 @@ Request.prototype = LIBCORE.instantiate(Operation, {
         me.response = response = new Response();
         
         // use response type as resonse contentType
-        if (LIBCORE.string(responseType)) {
+        if (string(responseType)) {
             response.addHeaders('Content-type: ' + responseType);
         }
         response.request = me;
@@ -286,13 +298,13 @@ Request.prototype = LIBCORE.instantiate(Operation, {
     }
 });
 
-Response.prototype = LIBCORE.instantiate(Operation, {
+Response.prototype = instantiate(Operation, {
     constructor: Response,
     status: 0,
     statusText: 'Uninitialized',
     process: function () {
         var me = this,
-            result = TRANSFORMER.transform(me.header('content-type'),
+            result = transform(me.header('content-type'),
                                         true,
                                         me.body),
             headers = result[0];
@@ -308,6 +320,6 @@ Response.prototype = LIBCORE.instantiate(Operation, {
 });
 
 
-LIBDOM.destructor(destructor);
+domDestructor(destructor);
 
-module.exports = Request;
+export default Request;

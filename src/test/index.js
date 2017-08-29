@@ -1,7 +1,8 @@
 'use strict';
 
+import main from "../index.js";
 
-global.testModule = require("../index.js");
+global.testModule = main;
 
-require("./phony/test.js");
+import "./phony/test.js";
 

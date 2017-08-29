@@ -1,7 +1,15 @@
 'use strict';
 
-var LIBCORE = require("libcore"),
-    LINE_SPLIT_RE = /\r\n|\r|\n/,
+import {
+            string,
+            number,
+            object,
+            array,
+            contains,
+            each as eachProperty
+        } from "libcore";
+        
+var LINE_SPLIT_RE = /\r\n|\r|\n/,
     LINE_PAIR_RE = /^([^ \r\n\t\s\:]+)\:(.+)$/,
     LINE_EXTENSION_RE = /^([ \r\n\t\s]+.+|[^\:]+)$/,
     LINE_REQUEST_RE =
@@ -10,23 +18,13 @@ var LIBCORE = require("libcore"),
         /^(HTTP\/[0-9]+.[0-9]+)[ \t\s]+([0-9]+)[ \t\s]+([a-z0-9\-\_]+)$/i,
     LINE_TRIM = /^[ \t\s]*(.+)[ \t\s]*$/,
     MULTI_VALUE_RE = /Set\-cookie/i,
-    EXPORTS = {
-        each: eachHeader,
+    exported = {
+        each: each,
         parse: parse,
-        headerName: normalizeHeaderName
+        headerName: headerName
     };
 
-function normalizeHeaderName(name) {
-    if (!name) {
-        return '';
-    }
-    
-    return name.charAt(0).toUpperCase() +
-                name.
-                    substring(1, name.length).
-                    toLowerCase();
-    
-}
+
 
 function parseHeaderString(str, callback, scope) {
     var lines = str.split(LINE_SPLIT_RE),
@@ -38,8 +36,7 @@ function parseHeaderString(str, callback, scope) {
         multivalueRe = MULTI_VALUE_RE,
         separator = ':',
         trimReplace = "$1",
-        contains = LIBCORE.contains,
-        normalize = normalizeHeaderName,
+        normalize = headerName,
         l = lines.length,
         c = -1,
         headers = {},
@@ -120,70 +117,7 @@ function parseHeaderString(str, callback, scope) {
     }
 }
 
-function eachHeader(input, callback, scope, current) {
-    var CORE = LIBCORE,
-        isString = CORE.string,
-        isNumber = CORE.number,
-        isArray = CORE.array,
-        contains = CORE.contains,
-        clean = cleanArrayValues,
-        multivalueRe = MULTI_VALUE_RE,
-        normalize = normalizeHeaderName;
-    var name, value, len;
-    
-    // join as string
-    if (CORE.array(input)) {
-        input = clean(input.slice(0)).join("\r\n");
-    }
-    
-    if (isString(input)) {
-        parseHeaderString(input, callback, scope, current);
-        
-    }
-    else if (CORE.object(input)) {
-        if (typeof scope === 'undefined') {
-            scope = null;
-        }
-        
-        for (name in input) {
-            if (contains(input, name)) {
-                value = input[name];
-                name = normalize(name);
-                
-                if (isString(value) || isNumber(value)) {
-                    callback.call(scope, name,
-                                            multivalueRe.test(name) ?
-                                                [value] : value);
-                }
-                else if (isArray(value)) {
-                    
-                    value = clean(value.slice(0));
-                    
-                    if (!multivalueRe.test(name)) {
-                        len = value.length;
-                        value = len ? value[len - 1] : '';
-                    }
-                    
-                    if (value.length) {
-                        callback.call(scope, name, value);
-                    }
-                }
-            }
-        }
-    }
-    else {
-        
-        return false;
-    }
-    
-    return true;
-    
-}
 
-function parse(headers) {
-    var values = {};
-    return eachHeader(headers, parseCallback, values) && values;
-}
 
 function parseCallback(name, values) {
     
@@ -192,9 +126,8 @@ function parseCallback(name, values) {
 }
 
 function cleanArrayValues(array) {
-    var CORE = LIBCORE,
-        isString = CORE.string,
-        isNumber = CORE.number,
+    var isString = string,
+        isNumber = number,
         l = array.length;
     var value;
     
@@ -210,5 +143,89 @@ function cleanArrayValues(array) {
     return array;
 }
 
+function onEachInput(value, name) {
+    var context = this,
+        callback = context[0],
+        scope = context[1],
+        multivalueRe = MULTI_VALUE_RE;
+    
+    var len;
+    
+    name = headerName(name);
+    
+    if (string(value) || number(value)) {
+        callback.call(scope, name,
+                                multivalueRe.test(name) ?
+                                    [value] : value);
+    }
+    else if (array(value)) {
+        
+        value = cleanArrayValues(value.slice(0));
+        
+        if (!multivalueRe.test(name)) {
+            len = value.length;
+            value = len ? value[len - 1] : '';
+        }
+        
+        if (value.length) {
+            callback.call(scope, name, value);
+        }
+    }
+}
 
-module.exports = EXPORTS;
+export 
+    function headerName(name) {
+        if (!name) {
+            return '';
+        }
+        
+        return name.charAt(0).toUpperCase() +
+                    name.
+                        substring(1, name.length).
+                        toLowerCase();
+        
+    }
+    
+export
+    function each(input, callback, scope, current) {
+        
+        // join as string
+        if (array(input)) {
+            input = cleanArrayValues(input.slice(0)).join("\r\n");
+        }
+        
+        if (string(input)) {
+            parseHeaderString(input, callback, scope, current);
+            
+        }
+        else if (object(input)) {
+            
+            if (typeof scope === 'undefined') {
+                scope = null;
+            }
+            
+            eachProperty(input,
+                         onEachInput,
+                         [callback,
+                          scope
+                            
+                         ],
+                         true);
+            
+        }
+        else {
+            
+            return false;
+        }
+        
+        return true;
+        
+    }
+    
+export
+    function parse(headers) {
+        var values = {};
+        return each(headers, parseCallback, values) && values;
+    }
+    
+export default exported;

@@ -1,6 +1,9 @@
 'use strict';
 
-var HELP = require("./helper.js");
+import {
+            each,
+            jsonify
+        } from "./helper.js";
 
 function createValue(operation, name, value, type, fieldType) {
     var items = operation.returnValue;
@@ -17,7 +20,7 @@ function createValue(operation, name, value, type, fieldType) {
         value = isFinite(value) ? value.toString(10) : '';
     }
     else if (typeof value !== 'string') {
-        value = HELP.jsonify(value);
+        value = jsonify(value);
     }
     
     // encode
@@ -26,11 +29,11 @@ function createValue(operation, name, value, type, fieldType) {
 
 
 function convert(data) {
-    var body = HELP.each(data, createValue, {
+    var body = each(data, createValue, {
                     returnValue: []
                 });
     
     return [null, body.join('&')];
 }
 
-module.exports = convert;
+export default convert;

@@ -1,9 +1,8 @@
 'use strict';
 
-var main = require("./index.js");
+import "./demo/prepare.js"; 
 
-global.main = main;
+console.log('window ', global);
+console.log("main! ", global.testModule);
 
-module.exports = main;
-
-require("./demo/driver.js");
+import "./demo/driver.js";

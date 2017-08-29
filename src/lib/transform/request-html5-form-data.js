@@ -1,11 +1,18 @@
 'use strict';
 
-var LIBCORE = require("libcore"),
-    HELP = require("./helper.js");
+import {
+            string
+        } from "libcore";
+        
+import {
+            jsonify,
+            each
+        } from "./helper.js";
+
 
 function appendFormData(operation, name, value, type, fieldType) {
     var formData = operation.returnValue,
-        isString = LIBCORE.string;
+        isString = string;
     var list, c, l, filename;
     
     // don't use parsed name for formData
@@ -36,7 +43,7 @@ function appendFormData(operation, name, value, type, fieldType) {
         value = isFinite(value) ? value.toString(10) : '';
     }
     else if (typeof value !== 'string') {
-        value = HELP.jsonify(value);
+        value = jsonify(value);
     }
     formData.append(name, value);
     
@@ -46,13 +53,13 @@ function appendFormData(operation, name, value, type, fieldType) {
 
 function convert(data) {
     return [null,
-            HELP.each(data,
-                    appendFormData,
-                    {
-                        returnValue: new (global.FormData)()
-                    })];
+            each(data,
+                appendFormData,
+                {
+                    returnValue: new (global.FormData)()
+                })];
     
 }
 
 
-module.exports = convert;
+export default convert;

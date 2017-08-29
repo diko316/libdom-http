@@ -1,19 +1,39 @@
 'use strict';
 
-var LIBCORE = require("libcore"),
-    DRIVER = require("./driver.js"),
-    OPERATION = require("./operation.js"),
-    HELP = require("./transform/helper.js"),
-    DEFAULTS = LIBCORE.createRegistry(),
+import {
+            string,
+            object,
+            run,
+            createRegistry
+        } from "libcore";
+        
+import { get as getModule } from "./chain.js";
+
+import {
+            exists,
+            use,
+            get
+        } from "./driver.js";
+        
+import OPERATION from "./operation.js";
+
+import {
+            form
+        } from "./transform/helper.js";
+
+
+var DEFAULTS = createRegistry(),
     METHODS = ['get','post','put','patch','delete','options'],
     ALLOWED_PAYLOAD = ['post', 'put', 'patch'],
-    EXPORTS = {
+    exported = {
         request: request,
-        defaults: accessDefaults
+        defaults: defaults
     };
+    
+
 
 function normalizeMethod(method) {
-    if (LIBCORE.string(method)) {
+    if (string(method)) {
         method = method.toLowerCase();
         if (METHODS.indexOf(method) !== -1) {
             return method;
@@ -24,25 +44,23 @@ function normalizeMethod(method) {
 }
 
 function sniffDriver(config) {
-    var driver = config.driver,
-        mgr = DRIVER;
+    var driver = config.driver;
     
     // call middleware
-    LIBCORE.run("libdom-http.driver.resolve", [config, driver]);
+    run("libdom-http.driver.resolve", [config, driver]);
     driver = config.driver;
     
-    if (LIBCORE.string(driver) && mgr.exists(driver)) {
+    if (string(driver) && exists(driver)) {
         return driver;
     }
     
     // use default
-    return mgr.use();
+    return use();
     
 }
 
 function applyRequestForm(form, requestObject) {
-    var CORE = LIBCORE,
-        isString = CORE.string;
+    var isString = string;
     var item;
     
     // use this as request header only if not default
@@ -76,15 +94,13 @@ function applyRequestForm(form, requestObject) {
 }
 
 function applyRequestConfig(config, requestObject) {
-    var CORE = LIBCORE,
-        isString = CORE.string,
-        help = HELP,
+    var isString = string,
         undef = void(0);
     var item;
     
     // apply defaults
     item = config.form || config.data || config.params || config.body;
-    if (help.form(item)) {
+    if (form(item)) {
         applyRequestForm(item, requestObject);
     }
     else if (item !== null || item !== undef) {
@@ -92,7 +108,7 @@ function applyRequestConfig(config, requestObject) {
     }
     
     item = config.query || config.urlData || config.urlParams;
-    if (help.form(item) || (item !== null && item !== undef)) {
+    if (form(item) || (item !== null && item !== undef)) {
         requestObject.query = item;
     }
     
@@ -124,87 +140,87 @@ function applyRequestConfig(config, requestObject) {
     item = null;
 }
 
-
-function request(url, config) {
-    var CORE = LIBCORE,
-        H = HELP,
-        isString = CORE.string,
-        isObject = CORE.object,
-        applyConfig = applyRequestConfig,
-        requestObject = new OPERATION(),
-        PROMISE = Promise;
-    var driver, promise;
-    
-    // apply defaults
-    applyConfig(DEFAULTS.clone(), requestObject);
-    
-    // process config
-    if (isString(url)) {
+export
+    function request(url, config) {
+        var isString = string,
+            isObject = object,
+            isForm = form,
+            applyConfig = applyRequestConfig,
+            requestObject = new OPERATION(),
+            PROMISE = Promise;
+        var driver, promise;
         
-        if (isObject(config)) {
-            applyConfig(config, requestObject);
-        }
-        else if (H.form(config)) {
-            applyRequestForm(config, requestObject);
-        }
+        // apply defaults
+        applyConfig(DEFAULTS.clone(), requestObject);
         
-        requestObject.url = url;
-        
-    }
-    else if (isObject(url)) {
-        applyConfig(url, requestObject);
-    }
-    else if (H.form(url)) {
-        applyRequestForm(url, requestObject);
-    }
-    
-    // decide if body is allowed or not based from methods
-    if (ALLOWED_PAYLOAD.indexOf(requestObject.method) === -1) {
-        requestObject.allowedPayload = false;
-    }
-    
-    
-    // validate
-    if (isString(requestObject.url)) {
-        
-        driver = sniffDriver(requestObject);
-        if (driver) {
-            driver = new (DRIVER.get(driver))(requestObject);
-            requestObject.driver = driver;
-            promise =  PROMISE.resolve(requestObject).
-                            then(driver.setup).
-                            then(driver.transport).
-                            then(driver.success)
-                            ["catch"](driver.error);
+        // process config
+        if (isString(url)) {
             
-            requestObject.api = promise;
-            requestObject = driver = null;
-            return promise;
+            if (isObject(config)) {
+                applyConfig(config, requestObject);
+            }
+            else if (isForm(config)) {
+                applyRequestForm(config, requestObject);
+            }
+            
+            requestObject.url = url;
+            
+        }
+        else if (isObject(url)) {
+            applyConfig(url, requestObject);
+        }
+        else if (isForm(url)) {
+            applyRequestForm(url, requestObject);
         }
         
+        // decide if body is allowed or not based from methods
+        if (ALLOWED_PAYLOAD.indexOf(requestObject.method) === -1) {
+            requestObject.allowedPayload = false;
+        }
+        
+        
+        // validate
+        if (isString(requestObject.url)) {
+            
+            driver = sniffDriver(requestObject);
+            if (driver) {
+                driver = new (get(driver))(requestObject);
+                requestObject.driver = driver;
+                promise =  PROMISE.resolve(requestObject).
+                                then(driver.setup).
+                                then(driver.transport).
+                                then(driver.success)
+                                ["catch"](driver.error);
+                
+                requestObject.api = promise;
+                requestObject = driver = null;
+                return promise;
+            }
+            
+        }
+        
+        return PROMISE.reject("Invalid HTTP request configuration.");
+        
     }
-    
-    return PROMISE.reject("Invalid HTTP request configuration.");
-    
-}
 
-function accessDefaults(name, value) {
-    var defaults = DEFAULTS;
-    if (arguments.length > 1) {
-        defaults.set(name, value);
-        return EXPORTS.chain;
+export
+    function defaults(name, value) {
+        var all = DEFAULTS;
+        if (arguments.length > 1) {
+            all.set(name, value);
+            return getModule();
+        }
+        
+        return all.get(name);
+        
     }
-    
-    return defaults.get(name);
-    
-}
 
 
-module.exports = EXPORTS;
+export default exported;
 
 
 // set default driver
-DRIVER.use('xhr');
+use('xhr');
 
 // set default method
 DEFAULTS.set('method', 'get');

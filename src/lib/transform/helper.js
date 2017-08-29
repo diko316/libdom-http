@@ -1,19 +1,30 @@
 'use strict';
 
+import {
+            string,
+            object,
+            array,
+            date,
+            contains,
+            each as eachProperty
+            
+        } from "libcore";
 
-var LIBDOM = require("libdom"),
-    LIBCORE = require("libcore"),
-    TYPE_OBJECT = 1,
+import {
+            is
+        } from "libdom";
+
+var TYPE_OBJECT = 1,
     TYPE_ARRAY = 2;
 
 
 
 function isForm(form) {
-    return LIBDOM.is(form, 1) && form.tagName.toUpperCase() === 'FORM';
+    return is(form, 1) && form.tagName.toUpperCase() === 'FORM';
 }
 
 function isField(field) {
-    if (LIBDOM.is(field, 1)) {
+    if (is(field, 1)) {
         switch (field.tagName.toUpperCase()) {
         case 'INPUT':
         case 'TEXTAREA':
@@ -25,17 +36,25 @@ function isField(field) {
     return false;
 }
 
+function onEachObjectValueProperty(value, name) {
+    /* jshint validthis: true */
+    var context = this;
+    
+    eachField(value,
+              name,
+              context[1],
+              context[0]);
+}
+
 function eachValues(values, callback, operation) {
-    var CORE = LIBCORE,
-        typeObject = TYPE_OBJECT,
+    var typeObject = TYPE_OBJECT,
         typeArray = TYPE_ARRAY,
         type = null,
         each = eachField,
-        isObject = CORE.object,
-        contains = CORE.contains,
+        isObject = object,
         isObjectValue = isObject(values);
         
-    var c, l, name;
+    var c, l;
     
     if (isForm(values)) {
         values = values.elements;
@@ -49,7 +68,7 @@ function eachValues(values, callback, operation) {
     else if (isObjectValue) {
         type = typeObject;
     }
-    else if (CORE.array(values)) {
+    else if (array(values)) {
         type = typeArray;
         isObjectValue = false;
     }
@@ -64,11 +83,10 @@ function eachValues(values, callback, operation) {
     
     if (isObjectValue || type === typeArray) {
         if (isObjectValue) {
-            for (name in values) {
-                if (contains(values, name)) {
-                    each(values[name], name, callback, operation);
-                }
-            }
+            eachProperty(values,
+                         onEachObjectValueProperty,
+                         [operation, callback],
+                         true);
         }
         else {
             for (c = -1, l = values.length; l--;) {
@@ -81,8 +99,7 @@ function eachValues(values, callback, operation) {
 }
 
 function eachField(field, name, callback, operation) {
-    var CORE = LIBCORE,
-        isString = CORE.string,
+    var isString = string,
         hasName = isString(name),
         fieldType = 'variant';
     var type, c, l, list, option;
@@ -138,10 +155,10 @@ function eachField(field, name, callback, operation) {
     }
     else {
         switch (true) {
-        case CORE.array(field):
+        case array(field):
             type = 'array';
             break;
-        case CORE.date(field):
+        case date(field):
             type = 'date';
             break;
         default:
@@ -154,27 +171,30 @@ function eachField(field, name, callback, operation) {
     }
 }
 
-function jsonify(raw) {
-    var json = global.JSON,
-        data = null;
-        
-    if (!json) {
-        throw new Error("JSON is not supported in this platform");
+export
+    function jsonify(raw) {
+        var json = global.JSON,
+            data = null;
+            
+        if (!json) {
+            throw new Error("JSON is not supported in this platform");
+        }
+        try {
+            data = json.stringify(raw);
+        }
+        catch (e) {}
+        return data === 'null' || data === null ? '' : data;
     }
-    try {
-        data = json.stringify(raw);
-    }
-    catch (e) {}
-    return data === 'null' || data === null ? '' : data;
-}
 
+export {
+            eachValues as each,
+            isForm as form,
+            isField as field
+        };
 
-module.exports = {
-    each: eachValues,
-    form: isForm,
-    field: isField,
-    jsonify: jsonify
-};
-
-
-
+export default {
+                each: eachValues,
+                form: isForm,
+                field: isField,
+                jsonify: jsonify
+            };
