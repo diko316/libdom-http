@@ -1,6 +1,6 @@
 {
   "name": "libdom-http",
-  "version": "0.2.1",
+  "version": "0.2.5",
   "description": "Http support for libdom",
   "main": "dist/libdom-http.js",
   "module": "dist/libdom-http.es.js",
