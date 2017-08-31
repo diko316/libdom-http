@@ -2173,7 +2173,7 @@ if (DETECT.formdata) {
 
 
 
-var moduleApi$1 = Object.freeze({
+var moduleApi = Object.freeze({
 	use: use$1,
 	driver: register,
 	transform: transform,
@@ -2184,8 +2184,10 @@ var moduleApi$1 = Object.freeze({
 	eachHeader: each$1
 });
 
-use(moduleApi$1);
+use(moduleApi);
+
+var index = request;
 
 export { use$1 as use, register as driver, transform, register$1 as transformer, request, defaults, parse as parseHeader, each$1 as eachHeader };
-export default moduleApi$1;
+export default index;
 //# sourceMappingURL=libdom-http.es.js.map

@@ -2178,7 +2178,7 @@ if (DETECT.formdata) {
 
 
 
-var moduleApi$1 = Object.freeze({
+var moduleApi = Object.freeze({
 	use: use$1,
 	driver: register,
 	transform: transform,
@@ -2189,9 +2189,11 @@ var moduleApi$1 = Object.freeze({
 	eachHeader: each$1
 });
 
-use(moduleApi$1);
+use(moduleApi);
 
-exports['default'] = moduleApi$1;
+var index = request;
+
+exports['default'] = index;
 exports.use = use$1;
 exports.driver = register;
 exports.transform = transform;

@@ -1,6 +1,6 @@
 {
   "name": "libdom-http",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "Http support for libdom",
   "main": "dist/libdom-http.js",
   "module": "dist/libdom-http.es.js",
@@ -51,7 +51,7 @@
     "rollup-plugin-uglify": "^2.0.1"
   },
   "optionalDependencies": {
-    "libcore": "0.3.5",
-    "libdom": "0.5.5"
+    "libcore": "0.3.6",
+    "libdom": "0.5.6"
   }
 }
