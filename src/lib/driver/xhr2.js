@@ -15,7 +15,6 @@ import DETECT from "../detect.js";
 import XHR from "./xhr.js";
 
 var MIDDLEWARE = middleware("libdom-http.driver.xhr"),
-    register = MIDDLEWARE.register,
     BEFORE_REQUEST = "before:request",
     PROTOTYPE = XHR.prototype,
     BINDS = PROTOTYPE.bindMethods,
@@ -93,13 +92,13 @@ function processFormData(instance, request) {
 // apply middlewares according to capability of the platform
 if (DETECT.xhrx) {
     features++;
-    register(BEFORE_REQUEST, addWithCredentials);
+    MIDDLEWARE.register(BEFORE_REQUEST, addWithCredentials);
 }
 
 // form data fixes
 if (DETECT.formdata) {
     features++;
-    register(BEFORE_REQUEST, processFormData);
+    MIDDLEWARE.register(BEFORE_REQUEST, processFormData);
 }
 
 // progress
@@ -107,12 +106,12 @@ if (PROGRESS) {
     features++;
     BINDS[BIND_LENGTH++] = 'onProgress';
     PROTOTYPE.onProgress = onProgress;
-    register(BEFORE_REQUEST, addProgressEvent);
+    MIDDLEWARE.register(BEFORE_REQUEST, addProgressEvent);
 }
 
 // timeout
 if (DETECT.xhrtime) {
-    register(BEFORE_REQUEST, addTimeout);
+    MIDDLEWARE.register(BEFORE_REQUEST, addTimeout);
 }
 
 
@@ -122,7 +121,7 @@ if (features) {
     if (features > 2) {
         PROTOTYPE.level = 2;
     }
-    register("cleanup", cleanup);
+    MIDDLEWARE.register("cleanup", cleanup);
 }
 
 

@@ -4,14 +4,12 @@ import { env } from "libcore";
 
 import DETECT from "./lib/detect.js";
 
-import DRIVER,
-        {
+import {
             register as driverRegister,
             use
         } from "./lib/driver.js";
 
-import TRANSFORMER,
-        {
+import {
             register as transformRegister,
             transform
         } from "./lib/transform.js";

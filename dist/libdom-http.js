@@ -2,9 +2,7 @@
 	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('libcore'), require('libdom')) :
 	typeof define === 'function' && define.amd ? define(['exports', 'libcore', 'libdom'], factory) :
 	(factory((global['libdom-http'] = {}),global.libcore,global.libdom));
-}(this, (function (exports,libcore,DOM) { 'use strict';
-
-var DOM__default = 'default' in DOM ? DOM['default'] : DOM;
+}(this, (function (exports,libcore,libdom) { 'use strict';
 
 var MAIN_MODULE;
 
@@ -20,7 +18,7 @@ var global$1 = typeof global !== "undefined" ? global :
             typeof self !== "undefined" ? self :
             typeof window !== "undefined" ? window : {};
 
-var ENV = DOM__default.env;
+var ENV = libdom.env;
 var G = global$1;
 var XHR = G.XMLHttpRequest;
 var support_xhr = !!XHR;
@@ -175,11 +173,11 @@ var TYPE_ARRAY = 2;
 
 
 function isForm(form) {
-    return DOM.is(form, 1) && form.tagName.toUpperCase() === 'FORM';
+    return libdom.is(form, 1) && form.tagName.toUpperCase() === 'FORM';
 }
 
 function isField(field) {
-    if (DOM.is(field, 1)) {
+    if (libdom.is(field, 1)) {
         switch (field.tagName.toUpperCase()) {
         case 'INPUT':
         case 'TEXTAREA':
@@ -801,9 +799,9 @@ Xhr.prototype = libcore.instantiate(Driver, {
     
     onReadyStateChange: function () {
         var me = this,
+            middleware$$1 = MIDDLEWARE,
             request = me.request,
             xhr = request.xhrTransport,
-            run$$1 = MIDDLEWARE.run,
             args = [me, request],
             resolve = request.resolve,
             reject = request.reject;
@@ -811,7 +809,7 @@ Xhr.prototype = libcore.instantiate(Driver, {
         
         if (!request.aborted && resolve && reject) {
             
-            run$$1("before:readystatechange", args);
+            middleware$$1.run("before:readystatechange", args);
             
             switch (xhr.readyState) {
             case STATE_UNSENT:
@@ -827,7 +825,7 @@ Xhr.prototype = libcore.instantiate(Driver, {
                     resolve(status);
                 }
             }
-            run$$1("after:statechange", args);
+            middleware$$1.run("after:statechange", args);
         }
         me = xhr = request = args = args[0] = args[1] = null;
     },
@@ -845,19 +843,19 @@ Xhr.prototype = libcore.instantiate(Driver, {
     onSetup: function (request) {
         var me = this,
             args = [me, request],
-            run$$1 = MIDDLEWARE.run,
+            middleware$$1 = MIDDLEWARE,
             xhr = new (global$1.XMLHttpRequest)();
             
         
         request.xhrTransport = xhr;
         
-        run$$1("before:setup", args);
+        middleware$$1.run("before:setup", args);
         
         xhr.onreadystatechange = me.onReadyStateChange;
         xhr.open(request.method.toUpperCase(), request.getUrl(), true);
         
         
-        run$$1("after:setup", args);
+        middleware$$1.run("after:setup", args);
         
         xhr = args = args[0] = args[1] = null;
         
@@ -865,11 +863,12 @@ Xhr.prototype = libcore.instantiate(Driver, {
     
     onTransport: function (request) {
         var me = this,
+            middleware$$1 = MIDDLEWARE,
             xhr = request.xhrTransport,
             headers = request.headers,
             args = [me, request];
        
-        MIDDLEWARE.run("before:request", args);
+        middleware$$1.run("before:request", args);
        
         request.transportPromise = me.createTransportPromise(request);
         
@@ -883,7 +882,7 @@ Xhr.prototype = libcore.instantiate(Driver, {
         
         xhr.send(request.body);
         
-        MIDDLEWARE.run("after:request", args);
+        middleware$$1.run("after:request", args);
         
         
         xhr = args = args[0] = args[1] = null;
@@ -896,15 +895,14 @@ Xhr.prototype = libcore.instantiate(Driver, {
         var me = this,
             xhr = request.xhrTransport,
             response = request.response,
-            args = [me, request],
-            run$$1 = MIDDLEWARE.run;
+            args = [me, request];
         
         response.status = xhr.status;
         response.statusText = xhr.statusText;
         response.addHeaders(xhr.getAllResponseHeaders());
         response.body = xhr.responseText;
         
-        run$$1("after:response", args);
+        MIDDLEWARE.run("after:response", args);
         
         xhr = args = args[0] = args[1] = null;
         
@@ -931,7 +929,6 @@ Xhr.prototype = libcore.instantiate(Driver, {
 });
 
 var MIDDLEWARE$1 = libcore.middleware("libdom-http.driver.xhr");
-var register$2 = MIDDLEWARE$1.register;
 var BEFORE_REQUEST = "before:request";
 var PROTOTYPE = Xhr.prototype;
 var BINDS = PROTOTYPE.bindMethods;
@@ -984,13 +981,13 @@ function addProgressEvent(instance, request) {
         request.percentLoaded = 0;
     }
     
-    DOM.on(request.xhrTransport, 'progress', instance.onProgress);
+    libdom.on(request.xhrTransport, 'progress', instance.onProgress);
 }
 
 // cleanup
 function cleanup(instance, request) {
     if (PROGRESS) {
-        DOM.un(request.xhrTransport, 'progress', instance.onProgress);
+        libdom.un(request.xhrTransport, 'progress', instance.onProgress);
     }
 }
 
@@ -1009,13 +1006,13 @@ function processFormData(instance, request) {
 // apply middlewares according to capability of the platform
 if (DETECT.xhrx) {
     features++;
-    register$2(BEFORE_REQUEST, addWithCredentials);
+    MIDDLEWARE$1.register(BEFORE_REQUEST, addWithCredentials);
 }
 
 // form data fixes
 if (DETECT.formdata) {
     features++;
-    register$2(BEFORE_REQUEST, processFormData);
+    MIDDLEWARE$1.register(BEFORE_REQUEST, processFormData);
 }
 
 // progress
@@ -1023,12 +1020,12 @@ if (PROGRESS) {
     features++;
     BINDS[BIND_LENGTH++] = 'onProgress';
     PROTOTYPE.onProgress = onProgress;
-    register$2(BEFORE_REQUEST, addProgressEvent);
+    MIDDLEWARE$1.register(BEFORE_REQUEST, addProgressEvent);
 }
 
 // timeout
 if (DETECT.xhrtime) {
-    register$2(BEFORE_REQUEST, addTimeout);
+    MIDDLEWARE$1.register(BEFORE_REQUEST, addTimeout);
 }
 
 
@@ -1038,7 +1035,7 @@ if (features) {
     if (features > 2) {
         PROTOTYPE.level = 2;
     }
-    register$2("cleanup", cleanup);
+    MIDDLEWARE$1.register("cleanup", cleanup);
 }
 
 var BASE_PROTOTYPE$1 = Driver.prototype;
@@ -1078,7 +1075,7 @@ function createForm(method$$1, url, contentType, blankDocument) {
     
     iframe = div.firstChild.firstChild;
     
-    DOM.on(iframe, 'load', frameFirstOnloadEvent);
+    libdom.on(iframe, 'load', frameFirstOnloadEvent);
     
     doc.body.appendChild(div);
     
@@ -1090,11 +1087,11 @@ function frameFirstOnloadEvent(event) {
     var target = event.target,
         form = target.parentNode;
         
-    DOM.un(target, 'load', frameFirstOnloadEvent);
+    libdom.un(target, 'load', frameFirstOnloadEvent);
     
     form.setAttribute('data-readystate', 'ready');
     
-    DOM.dispatch(form, 'libdom-http-ready', {});
+    libdom.dispatch(form, 'libdom-http-ready', {});
     
     target = form = null;
 }
@@ -1120,7 +1117,7 @@ function createField(operation, name, value, type, fieldType) {
             input.disabled = true;
             input.readOnly = true;
             impostors[impostors.length] = [value, input];
-            DOM.replace(value, input);
+            libdom.replace(value, input);
         }
         input = value;
         operation.files = true;
@@ -1206,7 +1203,7 @@ FormUpload.prototype = libcore.instantiate(Driver, {
             form = request.form;
 
         // unset event if it was set
-        DOM.un(form, 'libdom-http-ready', me.onFormReady);
+        libdom.un(form, 'libdom-http-ready', me.onFormReady);
         
         form.enctype = form.encoding = request.contentType;
         
@@ -1223,7 +1220,7 @@ FormUpload.prototype = libcore.instantiate(Driver, {
             form = request && request.form;
         
         if (form) {
-            DOM.on(request.iframe, 'load', me.onRespond);
+            libdom.on(request.iframe, 'load', me.onRespond);
             form.submit();
             
         }
@@ -1241,7 +1238,7 @@ FormUpload.prototype = libcore.instantiate(Driver, {
             success = false,
             docBody = '';
         
-        DOM.un(iframe, 'load', me.onRespond);
+        libdom.un(iframe, 'load', me.onRespond);
         
         try {
             docBody = iframe.contentWindow.document.body.innerHTML;
@@ -1318,7 +1315,7 @@ FormUpload.prototype = libcore.instantiate(Driver, {
             this.onFormReady();
         }
         else {
-            DOM.on(form, 'libdom-http-ready', this.onFormReady);
+            libdom.on(form, 'libdom-http-ready', this.onFormReady);
         }
         
     },
@@ -1343,7 +1340,7 @@ FormUpload.prototype = libcore.instantiate(Driver, {
         }
         
         if (form) {
-            DOM.remove(form.parentNode || form);
+            libdom.remove(form.parentNode || form);
         }
         
         request.transportPromise = 
@@ -1928,7 +1925,7 @@ Response.prototype = libcore.instantiate(Operation, {
 });
 
 
-DOM.destructor(destructor$1);
+libdom.destructor(destructor$1);
 
 var DEFAULTS = libcore.createRegistry();
 var METHODS = ['get','post','put','patch','delete','options'];
@@ -2178,7 +2175,7 @@ if (DETECT.formdata) {
 
 
 
-var moduleApi = Object.freeze({
+var moduleApi$1 = Object.freeze({
 	use: use$1,
 	driver: register,
 	transform: transform,
@@ -2189,11 +2186,9 @@ var moduleApi = Object.freeze({
 	eachHeader: each$1
 });
 
-use(moduleApi);
+use(moduleApi$1);
 
-var index = request;
-
-exports['default'] = index;
+exports['default'] = moduleApi$1;
 exports.use = use$1;
 exports.driver = register;
 exports.transform = transform;

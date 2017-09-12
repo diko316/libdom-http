@@ -9,4 +9,4 @@ use(moduleApi);
 
 export * from "./all.js";
 
-export default moduleApi.request;
+export default moduleApi;

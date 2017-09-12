@@ -3,6 +3,6 @@
 
 import mainModule from "../index.js";
 
-global.main = mainModule;
+global.testModule = mainModule;
 
 export default mainModule;

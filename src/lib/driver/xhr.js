@@ -53,9 +53,9 @@ Xhr.prototype = instantiate(BASE, {
     
     onReadyStateChange: function () {
         var me = this,
+            middleware = MIDDLEWARE,
             request = me.request,
             xhr = request.xhrTransport,
-            run = MIDDLEWARE.run,
             args = [me, request],
             resolve = request.resolve,
             reject = request.reject;
@@ -63,7 +63,7 @@ Xhr.prototype = instantiate(BASE, {
         
         if (!request.aborted && resolve && reject) {
             
-            run("before:readystatechange", args);
+            middleware.run("before:readystatechange", args);
             
             switch (xhr.readyState) {
             case STATE_UNSENT:
@@ -79,7 +79,7 @@ Xhr.prototype = instantiate(BASE, {
                     resolve(status);
                 }
             }
-            run("after:statechange", args);
+            middleware.run("after:statechange", args);
         }
         me = xhr = request = args = args[0] = args[1] = null;
     },
@@ -97,19 +97,19 @@ Xhr.prototype = instantiate(BASE, {
     onSetup: function (request) {
         var me = this,
             args = [me, request],
-            run = MIDDLEWARE.run,
+            middleware = MIDDLEWARE,
             xhr = new (global.XMLHttpRequest)();
             
         
         request.xhrTransport = xhr;
         
-        run("before:setup", args);
+        middleware.run("before:setup", args);
         
         xhr.onreadystatechange = me.onReadyStateChange;
         xhr.open(request.method.toUpperCase(), request.getUrl(), true);
         
         
-        run("after:setup", args);
+        middleware.run("after:setup", args);
         
         xhr = args = args[0] = args[1] = null;
         
@@ -117,11 +117,12 @@ Xhr.prototype = instantiate(BASE, {
     
     onTransport: function (request) {
         var me = this,
+            middleware = MIDDLEWARE,
             xhr = request.xhrTransport,
             headers = request.headers,
             args = [me, request];
        
-        MIDDLEWARE.run("before:request", args);
+        middleware.run("before:request", args);
        
         request.transportPromise = me.createTransportPromise(request);
         
@@ -135,7 +136,7 @@ Xhr.prototype = instantiate(BASE, {
         
         xhr.send(request.body);
         
-        MIDDLEWARE.run("after:request", args);
+        middleware.run("after:request", args);
         
         
         xhr = args = args[0] = args[1] = null;
@@ -148,15 +149,14 @@ Xhr.prototype = instantiate(BASE, {
         var me = this,
             xhr = request.xhrTransport,
             response = request.response,
-            args = [me, request],
-            run = MIDDLEWARE.run;
+            args = [me, request];
         
         response.status = xhr.status;
         response.statusText = xhr.statusText;
         response.addHeaders(xhr.getAllResponseHeaders());
         response.body = xhr.responseText;
         
-        run("after:response", args);
+        MIDDLEWARE.run("after:response", args);
         
         xhr = args = args[0] = args[1] = null;
         

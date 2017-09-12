@@ -1,5 +1,5 @@
 import { array, assign, clear, contains, createRegistry, date, each, env, instantiate, jsonFill, method, middleware, number, object, run, string } from 'libcore';
-import DOM, { destructor, dispatch, is, on, remove, replace, un } from 'libdom';
+import { destructor, dispatch, env as env$1, is, on, remove, replace, un } from 'libdom';
 
 var MAIN_MODULE;
 
@@ -15,7 +15,7 @@ var global$1 = typeof global !== "undefined" ? global :
             typeof self !== "undefined" ? self :
             typeof window !== "undefined" ? window : {};
 
-var ENV = DOM.env;
+var ENV = env$1;
 var G = global$1;
 var XHR = G.XMLHttpRequest;
 var support_xhr = !!XHR;
@@ -796,9 +796,9 @@ Xhr.prototype = instantiate(Driver, {
     
     onReadyStateChange: function () {
         var me = this,
+            middleware$$1 = MIDDLEWARE,
             request = me.request,
             xhr = request.xhrTransport,
-            run$$1 = MIDDLEWARE.run,
             args = [me, request],
             resolve = request.resolve,
             reject = request.reject;
@@ -806,7 +806,7 @@ Xhr.prototype = instantiate(Driver, {
         
         if (!request.aborted && resolve && reject) {
             
-            run$$1("before:readystatechange", args);
+            middleware$$1.run("before:readystatechange", args);
             
             switch (xhr.readyState) {
             case STATE_UNSENT:
@@ -822,7 +822,7 @@ Xhr.prototype = instantiate(Driver, {
                     resolve(status);
                 }
             }
-            run$$1("after:statechange", args);
+            middleware$$1.run("after:statechange", args);
         }
         me = xhr = request = args = args[0] = args[1] = null;
     },
@@ -840,19 +840,19 @@ Xhr.prototype = instantiate(Driver, {
     onSetup: function (request) {
         var me = this,
             args = [me, request],
-            run$$1 = MIDDLEWARE.run,
+            middleware$$1 = MIDDLEWARE,
             xhr = new (global$1.XMLHttpRequest)();
             
         
         request.xhrTransport = xhr;
         
-        run$$1("before:setup", args);
+        middleware$$1.run("before:setup", args);
         
         xhr.onreadystatechange = me.onReadyStateChange;
         xhr.open(request.method.toUpperCase(), request.getUrl(), true);
         
         
-        run$$1("after:setup", args);
+        middleware$$1.run("after:setup", args);
         
         xhr = args = args[0] = args[1] = null;
         
@@ -860,11 +860,12 @@ Xhr.prototype = instantiate(Driver, {
     
     onTransport: function (request) {
         var me = this,
+            middleware$$1 = MIDDLEWARE,
             xhr = request.xhrTransport,
             headers = request.headers,
             args = [me, request];
        
-        MIDDLEWARE.run("before:request", args);
+        middleware$$1.run("before:request", args);
        
         request.transportPromise = me.createTransportPromise(request);
         
@@ -878,7 +879,7 @@ Xhr.prototype = instantiate(Driver, {
         
         xhr.send(request.body);
         
-        MIDDLEWARE.run("after:request", args);
+        middleware$$1.run("after:request", args);
         
         
         xhr = args = args[0] = args[1] = null;
@@ -891,15 +892,14 @@ Xhr.prototype = instantiate(Driver, {
         var me = this,
             xhr = request.xhrTransport,
             response = request.response,
-            args = [me, request],
-            run$$1 = MIDDLEWARE.run;
+            args = [me, request];
         
         response.status = xhr.status;
         response.statusText = xhr.statusText;
         response.addHeaders(xhr.getAllResponseHeaders());
         response.body = xhr.responseText;
         
-        run$$1("after:response", args);
+        MIDDLEWARE.run("after:response", args);
         
         xhr = args = args[0] = args[1] = null;
         
@@ -926,7 +926,6 @@ Xhr.prototype = instantiate(Driver, {
 });
 
 var MIDDLEWARE$1 = middleware("libdom-http.driver.xhr");
-var register$2 = MIDDLEWARE$1.register;
 var BEFORE_REQUEST = "before:request";
 var PROTOTYPE = Xhr.prototype;
 var BINDS = PROTOTYPE.bindMethods;
@@ -1004,13 +1003,13 @@ function processFormData(instance, request) {
 // apply middlewares according to capability of the platform
 if (DETECT.xhrx) {
     features++;
-    register$2(BEFORE_REQUEST, addWithCredentials);
+    MIDDLEWARE$1.register(BEFORE_REQUEST, addWithCredentials);
 }
 
 // form data fixes
 if (DETECT.formdata) {
     features++;
-    register$2(BEFORE_REQUEST, processFormData);
+    MIDDLEWARE$1.register(BEFORE_REQUEST, processFormData);
 }
 
 // progress
@@ -1018,12 +1017,12 @@ if (PROGRESS) {
     features++;
     BINDS[BIND_LENGTH++] = 'onProgress';
     PROTOTYPE.onProgress = onProgress;
-    register$2(BEFORE_REQUEST, addProgressEvent);
+    MIDDLEWARE$1.register(BEFORE_REQUEST, addProgressEvent);
 }
 
 // timeout
 if (DETECT.xhrtime) {
-    register$2(BEFORE_REQUEST, addTimeout);
+    MIDDLEWARE$1.register(BEFORE_REQUEST, addTimeout);
 }
 
 
@@ -1033,7 +1032,7 @@ if (features) {
     if (features > 2) {
         PROTOTYPE.level = 2;
     }
-    register$2("cleanup", cleanup);
+    MIDDLEWARE$1.register("cleanup", cleanup);
 }
 
 var BASE_PROTOTYPE$1 = Driver.prototype;
@@ -2173,7 +2172,7 @@ if (DETECT.formdata) {
 
 
 
-var moduleApi = Object.freeze({
+var moduleApi$1 = Object.freeze({
 	use: use$1,
 	driver: register,
 	transform: transform,
@@ -2184,10 +2183,8 @@ var moduleApi = Object.freeze({
 	eachHeader: each$1
 });
 
-use(moduleApi);
-
-var index = request;
+use(moduleApi$1);
 
 export { use$1 as use, register as driver, transform, register$1 as transformer, request, defaults, parse as parseHeader, each$1 as eachHeader };
-export default index;
+export default moduleApi$1;
 //# sourceMappingURL=libdom-http.es.js.map

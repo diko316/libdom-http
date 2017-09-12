@@ -2,7 +2,7 @@
 
 
 
-var http = global.main,
+var http = global.testModule,
     dom = global.libdom;
 var request = {
         method: 'post',
@@ -11,13 +11,14 @@ var request = {
         }
     };
 console.log("------------------ xhr");
-
+console.log(http);
 
 http.request("test/data.json", request).
     then(function (data) {
         console.log("success! ", data);
     }, function (error) {
         console.log("failed! ", error);
+        throw error;
     });
 
 

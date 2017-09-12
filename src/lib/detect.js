@@ -1,9 +1,9 @@
 'use strict';
 
-import DOM from "libdom";
+import { env } from "libdom";
 
 
-var ENV = DOM.env,
+var ENV = env,
     G = global,
     XHR = G.XMLHttpRequest,
     support_xhr = !!XHR,
